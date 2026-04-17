@@ -22,6 +22,7 @@ export default function LoginPage() {
     if (mode === 'signin') {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) { setError(error.message); setLoading(false); return }
+      setLoading(false)
       router.push('/tracks')
     } else {
       const { error } = await supabase.auth.signUp({ email, password })
