@@ -7,7 +7,7 @@ import { getGradientStyle } from '../lib/gradient'
 interface Props {
   track: Track
   isPlaying: boolean
-  audioRef: RefObject<HTMLAudioElement>
+  audioRef: RefObject<HTMLAudioElement | null>
   onPlayPause: () => void
   onPrev: () => void
   onNext: () => void
@@ -42,7 +42,8 @@ export default function PlayerBar({ track, isPlaying, audioRef, onPlayPause, onP
       audio.removeEventListener('timeupdate', onTimeUpdate)
       audio.removeEventListener('loadedmetadata', onLoadedMetadata)
     }
-  }, [audioRef])
+  // audioRef is a stable ref object — intentionally empty dep array
+  }, [])
 
   function handleSeek(e: React.MouseEvent<HTMLDivElement>) {
     const audio = audioRef.current
