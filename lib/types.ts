@@ -5,4 +5,6 @@ export interface Track {
   file_path: string
   uploader_email: string
   created_at: string
+  bpm?: number
+  key?: string
 }

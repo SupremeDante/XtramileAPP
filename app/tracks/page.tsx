@@ -18,6 +18,7 @@ export default function TracksPage() {
   const [userEmail, setUserEmail] = useState<string | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
   const [theme, setTheme] = useState<ThemePreference>('system')
+  const [searchQuery, setSearchQuery] = useState('')
   const audioRef = useRef<HTMLAudioElement>(null)
 
   useEffect(() => {
@@ -88,12 +89,31 @@ export default function TracksPage() {
     audioRef.current.play().catch(() => setIsPlaying(false))
   }, [activeTrack])
 
+  const filteredTracks = searchQuery.trim()
+    ? tracks.filter(track => {
+        if (track.user_id !== userId) return false
+        const q = searchQuery.toLowerCase()
+        return (
+          track.title.toLowerCase().includes(q) ||
+          (track.bpm != null && track.bpm.toString().includes(q)) ||
+          (track.key != null && track.key.toLowerCase().includes(q))
+        )
+      })
+    : tracks
+
   return (
     <div className="min-h-screen bg-[var(--color-bg-base)] pb-24">
       <nav className="bg-[var(--color-bg-surface)] border-b border-[var(--color-border)] px-6 py-3 flex items-center justify-between relative">
         <span className="text-[var(--color-text-primary)] font-bold text-lg">🎵 Xtramile</span>
         <img src="/assets/xtramile-logo.png" alt="Xtramile" className="absolute left-1/2 -translate-x-1/2" style={{ maxHeight: '48px', width: 'auto' }} />
         <div className="flex items-center gap-4">
+          <input
+            type="search"
+            placeholder="Search tracks..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="bg-[var(--color-bg-elevated)] border border-[var(--color-border)] text-[var(--color-text-primary)] placeholder-gray-500 text-sm px-3 py-1.5 rounded-lg w-48 focus:outline-none focus:border-purple-500"
+          />
           <button
             onClick={() => setShowUpload(true)}
             className="bg-purple-600 hover:bg-purple-700 text-white text-sm px-4 py-2 rounded-lg transition-colors"
@@ -125,7 +145,7 @@ export default function TracksPage() {
           <p className="text-gray-600 text-sm">No tracks yet. Upload the first one!</p>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            {tracks.map(track => (
+            {filteredTracks.map(track => (
               <TrackCard
                 key={track.id}
                 track={track}
