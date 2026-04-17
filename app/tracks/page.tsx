@@ -77,8 +77,9 @@ export default function TracksPage() {
 
   return (
     <div className="min-h-screen bg-[#0f0f1a] pb-24">
-      <nav className="bg-[#1a1a2e] border-b border-[#2a2a3e] px-6 py-3 flex items-center justify-between">
+      <nav className="bg-[#1a1a2e] border-b border-[#2a2a3e] px-6 py-3 flex items-center justify-between relative">
         <span className="text-white font-bold text-lg">🎵 Xtramile</span>
+        <img src="/assets/xtramile-logo.png" alt="Xtramile" className="absolute left-1/2 -translate-x-1/2" style={{ maxHeight: '48px', width: 'auto' }} />
         <div className="flex items-center gap-4">
           <button
             onClick={() => setShowUpload(true)}
