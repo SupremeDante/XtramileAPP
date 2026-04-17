@@ -9,6 +9,8 @@ export default function LoginPage() {
   const [mode, setMode] = useState<'signin' | 'signup'>('signin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [displayName, setDisplayName] = useState('')
+  const [handle, setHandle] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
@@ -25,7 +27,16 @@ export default function LoginPage() {
       setLoading(false)
       router.push('/tracks')
     } else {
-      const { error } = await supabase.auth.signUp({ email, password })
+      if (!displayName.trim() || !handle.trim()) {
+        setError('Display name and handle are required.')
+        setLoading(false)
+        return
+      }
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { display_name: displayName.trim(), handle: handle.trim().toLowerCase().replace(/[^a-z0-9_]/g, '') } },
+      })
       if (error) { setError(error.message); setLoading(false); return }
       setMessage('Check your email to confirm your account, then sign in.')
       setLoading(false)
@@ -75,6 +86,26 @@ export default function LoginPage() {
               required
               className="w-full bg-[#0f0f1a] border border-[#333] rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-purple-500"
             />
+            {mode === 'signup' && (
+              <>
+                <input
+                  type="text"
+                  value={displayName}
+                  onChange={e => setDisplayName(e.target.value)}
+                  placeholder="Display name"
+                  required
+                  className="w-full bg-[#0f0f1a] border border-[#333] rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-purple-500"
+                />
+                <input
+                  type="text"
+                  value={handle}
+                  onChange={e => setHandle(e.target.value)}
+                  placeholder="Handle (e.g. djmike)"
+                  required
+                  className="w-full bg-[#0f0f1a] border border-[#333] rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-purple-500"
+                />
+              </>
+            )}
             {error && <p className="text-red-400 text-sm">{error}</p>}
             {message && <p className="text-green-400 text-sm">{message}</p>}
             <button

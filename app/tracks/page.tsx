@@ -8,6 +8,7 @@ import TrackCard from '../../components/TrackCard'
 import UploadModal from '../../components/UploadModal'
 import PlayerBar from '../../components/PlayerBar'
 import { getTheme, saveTheme, applyTheme, ThemePreference } from '../../lib/theme'
+import { getProfile, createProfile, getAvatarColor } from '../../lib/profile'
 
 export default function TracksPage() {
   const router = useRouter()
@@ -17,6 +18,8 @@ export default function TracksPage() {
   const [showUpload, setShowUpload] = useState(false)
   const [userEmail, setUserEmail] = useState<string | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
+  const [displayName, setDisplayName] = useState('')
+  const [avatarColor, setAvatarColor] = useState('')
   const [theme, setTheme] = useState<ThemePreference>('system')
   const [searchQuery, setSearchQuery] = useState('')
   const audioRef = useRef<HTMLAudioElement>(null)
@@ -27,10 +30,18 @@ export default function TracksPage() {
       if (!session) { router.push('/login'); return }
       setUserEmail(session.user.email ?? null)
       setUserId(session.user.id)
+      let profile = await getProfile(session.user.id)
+      if (!profile) {
+        const meta = session.user.user_metadata
+        await createProfile(session.user.id, meta.display_name ?? '', meta.handle ?? '')
+        profile = await getProfile(session.user.id)
+      }
+      setDisplayName(profile?.display_name ?? '')
+      setAvatarColor(getAvatarColor(session.user.id))
       const savedTheme = await getTheme(session.user.id)
       setTheme(savedTheme)
       applyTheme(savedTheme)
-      await fetchTracks()
+      await fetchTracks(session.user.id)
     }
     init()
   }, [])
@@ -41,10 +52,11 @@ export default function TracksPage() {
     if (userId) await saveTheme(userId, newTheme)
   }
 
-  async function fetchTracks() {
+  async function fetchTracks(uid?: string) {
     const { data, error } = await supabase
       .from('tracks')
       .select('*')
+      .eq('user_id', uid ?? userId)
       .order('created_at', { ascending: false })
     if (!error && data) setTracks(data as Track[])
   }
@@ -129,6 +141,14 @@ export default function TracksPage() {
             <option value="dark">Dark</option>
             <option value="system">System</option>
           </select>
+          {displayName && (
+            <div
+              className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
+              style={{ backgroundColor: avatarColor }}
+            >
+              {displayName.charAt(0).toUpperCase()}
+            </div>
+          )}
           <span className="text-gray-400 text-sm hidden sm:block">{userEmail}</span>
           <button
             onClick={async () => { await supabase.auth.signOut(); router.push('/login') }}
