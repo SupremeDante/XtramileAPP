@@ -53,26 +53,26 @@ export default function PlayerBar({ track, isPlaying, audioRef, onPlayPause, onP
   }
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-[#13131f] border-t border-[#2a2a3e] px-5 py-3 flex items-center gap-5">
+    <div className="fixed bottom-0 left-0 right-0 bg-[var(--color-bg-player)] border-t border-[var(--color-border)] px-5 py-3 flex items-center gap-5">
       <div
         className="w-11 h-11 rounded-md flex-shrink-0"
         style={getGradientStyle(track.id)}
       />
       <div className="flex-1 min-w-0">
-        <p className="text-white text-sm font-semibold truncate">{track.title}</p>
+        <p className="text-[var(--color-text-primary)] text-sm font-semibold truncate">{track.title}</p>
         <p className="text-gray-500 text-xs truncate">{track.uploader_email.split('@')[0]}</p>
       </div>
       <div className="flex items-center gap-4">
-        <button onClick={onPrev} className="text-gray-400 hover:text-white text-lg">⏮</button>
-        <button onClick={onPlayPause} className="text-white hover:text-purple-400 text-2xl">
+        <button onClick={onPrev} className="text-gray-400 hover:text-[var(--color-text-primary)] text-lg">⏮</button>
+        <button onClick={onPlayPause} className="text-[var(--color-text-primary)] hover:text-purple-400 text-2xl">
           {isPlaying ? '⏸' : '▶'}
         </button>
-        <button onClick={onNext} className="text-gray-400 hover:text-white text-lg">⏭</button>
+        <button onClick={onNext} className="text-gray-400 hover:text-[var(--color-text-primary)] text-lg">⏭</button>
       </div>
       <div className="flex flex-1 items-center gap-3 max-w-md">
         <span className="text-gray-500 text-xs w-8 text-right">{currentTime}</span>
         <div
-          className="flex-1 h-1 bg-[#333] rounded cursor-pointer"
+          className="flex-1 h-1 bg-[var(--color-bg-progress)] rounded cursor-pointer"
           onClick={handleSeek}
         >
           <div className="h-full bg-purple-500 rounded" style={{ width: `${progress}%` }} />

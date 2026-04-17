@@ -14,7 +14,7 @@ export default function TrackCard({ track, isActive, isPlaying, onClick }: Props
   return (
     <div
       onClick={onClick}
-      className={`bg-[#1e1e30] rounded-xl overflow-hidden cursor-pointer transition-transform hover:scale-[1.02] ${
+      className={`bg-[var(--color-bg-elevated)] rounded-xl overflow-hidden cursor-pointer transition-transform hover:scale-[1.02] ${
         isActive ? 'ring-2 ring-purple-500' : ''
       }`}
     >
@@ -25,7 +25,7 @@ export default function TrackCard({ track, isActive, isPlaying, onClick }: Props
         {isPlaying ? '▶' : '♪'}
       </div>
       <div className="p-3">
-        <p className="text-white text-sm font-semibold truncate">{track.title}</p>
+        <p className="text-[var(--color-text-primary)] text-sm font-semibold truncate">{track.title}</p>
         <p className="text-gray-500 text-xs mt-1 truncate">
           {track.uploader_email.split('@')[0]}
         </p>

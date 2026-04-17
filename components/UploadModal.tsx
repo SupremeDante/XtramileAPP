@@ -50,10 +50,10 @@ export default function UploadModal({ onClose, onUploaded, userEmail }: Props) {
       onClick={onClose}
     >
       <div
-        className="bg-[#1e1e30] rounded-2xl p-6 w-full max-w-md mx-4"
+        className="bg-[var(--color-bg-elevated)] rounded-2xl p-6 w-full max-w-md mx-4"
         onClick={e => e.stopPropagation()}
       >
-        <h2 className="text-white text-lg font-semibold mb-4">Upload Track</h2>
+        <h2 className="text-[var(--color-text-primary)] text-lg font-semibold mb-4">Upload Track</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="text-gray-400 text-sm block mb-1">Title</label>
@@ -62,7 +62,7 @@ export default function UploadModal({ onClose, onUploaded, userEmail }: Props) {
               value={title}
               onChange={e => setTitle(e.target.value)}
               placeholder="Track title"
-              className="w-full bg-[#0f0f1a] border border-[#333] rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-purple-500"
+              className="w-full bg-[var(--color-bg-base)] border border-[var(--color-border-input)] rounded-lg px-3 py-2 text-[var(--color-text-primary)] text-sm focus:outline-none focus:border-purple-500"
             />
           </div>
           <div>
@@ -79,7 +79,7 @@ export default function UploadModal({ onClose, onUploaded, userEmail }: Props) {
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 bg-[#333] hover:bg-[#444] text-white py-2 rounded-lg text-sm"
+              className="flex-1 bg-[var(--color-bg-cancel)] hover:bg-[var(--color-bg-cancel-hov)] text-[var(--color-text-primary)] py-2 rounded-lg text-sm"
             >
               Cancel
             </button>

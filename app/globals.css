@@ -1,1 +1,45 @@
 @import "tailwindcss";
+
+:root {
+  --color-bg-base: #0f0f1a;
+  --color-bg-surface: #1a1a2e;
+  --color-bg-elevated: #1e1e30;
+  --color-bg-player: #13131f;
+  --color-border: #2a2a3e;
+  --color-border-input: #333333;
+  --color-bg-cancel: #333333;
+  --color-bg-cancel-hov: #444444;
+  --color-bg-progress: #333333;
+  --color-text-primary: #ffffff;
+  --color-text-label: #e0e0ff;
+}
+
+[data-theme="light"] {
+  --color-bg-base: #f0f0f8;
+  --color-bg-surface: #ffffff;
+  --color-bg-elevated: #f5f5ff;
+  --color-bg-player: #ffffff;
+  --color-border: #e2e2f0;
+  --color-border-input: #d0d0e0;
+  --color-bg-cancel: #e8e8f0;
+  --color-bg-cancel-hov: #d8d8e8;
+  --color-bg-progress: #e0e0f0;
+  --color-text-primary: #1a1a2e;
+  --color-text-label: #5a5a8a;
+}
+
+@media (prefers-color-scheme: light) {
+  [data-theme="system"] {
+    --color-bg-base: #f0f0f8;
+    --color-bg-surface: #ffffff;
+    --color-bg-elevated: #f5f5ff;
+    --color-bg-player: #ffffff;
+    --color-border: #e2e2f0;
+    --color-border-input: #d0d0e0;
+    --color-bg-cancel: #e8e8f0;
+    --color-bg-cancel-hov: #d8d8e8;
+    --color-bg-progress: #e0e0f0;
+    --color-text-primary: #1a1a2e;
+    --color-text-label: #5a5a8a;
+  }
+}
