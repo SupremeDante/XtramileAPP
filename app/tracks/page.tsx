@@ -18,15 +18,14 @@ export default function TracksPage() {
   const audioRef = useRef<HTMLAudioElement>(null)
 
   useEffect(() => {
-    checkAuth()
-    fetchTracks()
+    async function init() {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) { router.push('/login'); return }
+      setUserEmail(session.user.email ?? null)
+      await fetchTracks()
+    }
+    init()
   }, [])
-
-  async function checkAuth() {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) { router.push('/login'); return }
-    setUserEmail(session.user.email ?? null)
-  }
 
   async function fetchTracks() {
     const { data, error } = await supabase
@@ -128,6 +127,7 @@ export default function TracksPage() {
 
       {activeTrack && (
         <PlayerBar
+          key={activeTrack.id}
           track={activeTrack}
           isPlaying={isPlaying}
           audioRef={audioRef}
