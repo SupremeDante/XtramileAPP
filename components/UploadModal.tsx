@@ -27,7 +27,8 @@ export default function UploadModal({ onClose, onUploaded, userEmail }: Props) {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) { setError('Not authenticated.'); setUploading(false); return }
 
-    const filePath = `${session.user.id}/${Date.now()}-${file.name}`
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+    const filePath = `${session.user.id}/${Date.now()}-${safeName}`
     const { error: uploadError } = await supabase.storage.from('audio').upload(filePath, file)
     if (uploadError) { setError(uploadError.message); setUploading(false); return }
 
@@ -39,12 +40,19 @@ export default function UploadModal({ onClose, onUploaded, userEmail }: Props) {
     })
     if (insertError) { setError(insertError.message); setUploading(false); return }
 
+    setUploading(false)
     onUploaded()
   }
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-      <div className="bg-[#1e1e30] rounded-2xl p-6 w-full max-w-md mx-4">
+    <div
+      className="fixed inset-0 bg-black/70 flex items-center justify-center z-50"
+      onClick={onClose}
+    >
+      <div
+        className="bg-[#1e1e30] rounded-2xl p-6 w-full max-w-md mx-4"
+        onClick={e => e.stopPropagation()}
+      >
         <h2 className="text-white text-lg font-semibold mb-4">Upload Track</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
