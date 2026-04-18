@@ -9,6 +9,8 @@ import UploadModal from '../../components/UploadModal'
 import PlayerBar from '../../components/PlayerBar'
 import { getTheme, saveTheme, applyTheme, ThemePreference } from '../../lib/theme'
 import { getProfile, createProfile, getAvatarColor } from '../../lib/profile'
+import { DndContext, DragEndEvent, DragStartEvent, PointerSensor, KeyboardSensor, useSensor, useSensors, closestCenter } from '@dnd-kit/core'
+import { SortableContext, arrayMove, rectSortingStrategy, sortableKeyboardCoordinates } from '@dnd-kit/sortable'
 
 export default function TracksPage() {
   const router = useRouter()
@@ -22,7 +24,13 @@ export default function TracksPage() {
   const [avatarColor, setAvatarColor] = useState('')
   const [theme, setTheme] = useState<ThemePreference>('system')
   const [searchQuery, setSearchQuery] = useState('')
+  const [queue, setQueue] = useState<Track[]>([])
   const audioRef = useRef<HTMLAudioElement>(null)
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  )
 
   useEffect(() => {
     async function init() {
@@ -52,13 +60,51 @@ export default function TracksPage() {
     if (userId) await saveTheme(userId, newTheme)
   }
 
+  function handleTrackUpdated(updated: Track) {
+    setTracks(prev => prev.map(t => t.id === updated.id ? updated : t))
+    if (activeTrack?.id === updated.id) setActiveTrack(updated)
+  }
+
+  function handleTrackDeleted(trackId: string) {
+    if (!trackId) { fetchTracks(); return }
+    setTracks(prev => prev.filter(t => t.id !== trackId))
+    if (activeTrack?.id === trackId) {
+      audioRef.current?.pause()
+      setActiveTrack(null)
+      setIsPlaying(false)
+    }
+  }
+
   async function fetchTracks(uid?: string) {
     const { data, error } = await supabase
       .from('tracks')
       .select('*')
       .eq('user_id', uid ?? userId)
+      .order('display_order', { ascending: true, nullsFirst: false })
       .order('created_at', { ascending: false })
     if (!error && data) setTracks(data as Track[])
+  }
+
+  async function saveDisplayOrder(ordered: Track[]) {
+    await Promise.all(
+      ordered.map((t, i) =>
+        supabase.from('tracks').update({ display_order: i }).eq('id', t.id)
+      )
+    )
+  }
+
+  function handleDragStart(_event: DragStartEvent) {}
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    setTracks(prev => {
+      const oldIdx = prev.findIndex(t => t.id === active.id)
+      const newIdx = prev.findIndex(t => t.id === over.id)
+      const reordered = arrayMove(prev, oldIdx, newIdx)
+      saveDisplayOrder(reordered)
+      return reordered
+    })
   }
 
   function handleTrackClick(track: Track) {
@@ -87,7 +133,18 @@ export default function TracksPage() {
     setIsPlaying(true)
   }
 
+  function addToQueue(track: Track) {
+    setQueue(prev => [...prev, track])
+  }
+
   function handleNext() {
+    if (queue.length > 0) {
+      const [next, ...rest] = queue
+      setQueue(rest)
+      setActiveTrack(next)
+      setIsPlaying(true)
+      return
+    }
     if (!activeTrack || tracks.length === 0) return
     const idx = tracks.findIndex(t => t.id === activeTrack.id)
     setActiveTrack(tracks[(idx + 1) % tracks.length])
@@ -97,9 +154,33 @@ export default function TracksPage() {
   useEffect(() => {
     if (!activeTrack || !audioRef.current) return
     const { data } = supabase.storage.from('audio').getPublicUrl(activeTrack.file_path)
-    audioRef.current.src = data.publicUrl
-    audioRef.current.play().catch(() => setIsPlaying(false))
+    const publicUrl = data.publicUrl
+
+    async function load() {
+      try {
+        const cache = await caches.open('xtramile-offline')
+        const cached = await cache.match(publicUrl)
+        if (cached) {
+          const blob = await cached.blob()
+          audioRef.current!.src = URL.createObjectURL(blob)
+          audioRef.current!.play().catch(() => setIsPlaying(false))
+          return
+        }
+      } catch {}
+      audioRef.current!.src = publicUrl
+      audioRef.current!.play().catch(() => setIsPlaying(false))
+    }
+
+    load()
   }, [activeTrack])
+
+  useEffect(() => {
+    if (!activeTrack) return
+    const updated = tracks.find(t => t.id === activeTrack.id)
+    if (updated && updated.file_path !== activeTrack.file_path) {
+      setActiveTrack(updated)
+    }
+  }, [tracks])
 
   const filteredTracks = searchQuery.trim()
     ? tracks.filter(track => {
@@ -164,17 +245,29 @@ export default function TracksPage() {
         {tracks.length === 0 ? (
           <p className="text-gray-600 text-sm">No tracks yet. Upload the first one!</p>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            {filteredTracks.map(track => (
-              <TrackCard
-                key={track.id}
-                track={track}
-                isActive={activeTrack?.id === track.id}
-                isPlaying={isPlaying && activeTrack?.id === track.id}
-                onClick={() => handleTrackClick(track)}
-              />
-            ))}
-          </div>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext items={filteredTracks.map(t => t.id)} strategy={rectSortingStrategy}>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                {filteredTracks.map(track => (
+                  <TrackCard
+                    key={track.id}
+                    track={track}
+                    isActive={activeTrack?.id === track.id}
+                    isPlaying={isPlaying && activeTrack?.id === track.id}
+                    onClick={() => handleTrackClick(track)}
+                    onDelete={handleTrackDeleted}
+                    onTrackUpdated={handleTrackUpdated}
+                    onAddToQueue={addToQueue}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
         )}
       </main>
 
@@ -198,6 +291,12 @@ export default function TracksPage() {
           onPrev={handlePrev}
           onNext={handleNext}
         />
+      )}
+
+      {queue.length > 0 && (
+        <div className="fixed bottom-20 right-4 z-40 bg-purple-600 text-white text-xs px-3 py-1.5 rounded-full shadow-lg pointer-events-none">
+          {queue.length} in queue
+        </div>
       )}
     </div>
   )

@@ -7,4 +7,13 @@ export interface Track {
   created_at: string
   bpm?: number
   key?: string
+  display_order?: number | null
+  folder_id?: string | null
+}
+
+export interface Folder {
+  id: string
+  user_id: string
+  name: string
+  created_at: string
 }
