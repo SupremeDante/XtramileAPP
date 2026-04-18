@@ -207,7 +207,7 @@ export default function TracksPage() {
           />
           <button
             onClick={() => setShowUpload(true)}
-            className="bg-purple-600 hover:bg-purple-700 text-white text-sm px-4 py-2 rounded-lg transition-colors"
+            className="btn-chrome text-sm px-4 py-2 rounded-lg font-medium"
           >
             Upload Track
           </button>

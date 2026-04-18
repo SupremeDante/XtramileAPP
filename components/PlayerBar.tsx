@@ -79,7 +79,7 @@ export default function PlayerBar({ track, isPlaying, audioRef, onPlayPause, onP
           className="flex-1 h-1 bg-[var(--color-bg-progress)] rounded cursor-pointer"
           onClick={handleSeek}
         >
-          <div className="h-full bg-purple-500 rounded" style={{ width: `${progress}%` }} />
+          <div className="h-full rounded" style={{ width: `${progress}%`, background: 'linear-gradient(90deg, #9a9a9a, #d8d8d8)' }} />
         </div>
         <span className="text-gray-500 text-xs w-8">{duration}</span>
       </div>

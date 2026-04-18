@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { withUploadProgress } from '../lib/uploadProgress'
 
@@ -11,6 +11,7 @@ interface Props {
 }
 
 export default function UploadModal({ onClose, onUploaded, userEmail }: Props) {
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [title, setTitle] = useState('')
   const [file, setFile] = useState<File | null>(null)
   const [uploadMsg, setUploadMsg] = useState('')
@@ -94,11 +95,22 @@ export default function UploadModal({ onClose, onUploaded, userEmail }: Props) {
           <div>
             <label className="text-gray-400 text-sm block mb-1">Audio File</label>
             <input
+              ref={fileInputRef}
               type="file"
               accept="audio/*"
               onChange={e => setFile(e.target.files?.[0] ?? null)}
-              className="w-full text-gray-400 text-sm"
+              className="hidden"
             />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="btn-chrome px-4 py-2 rounded-lg text-sm font-medium"
+            >
+              Upload File
+            </button>
+            {file && (
+              <p className="text-gray-400 text-xs mt-2 truncate">{file.name}</p>
+            )}
           </div>
           {error && <p className="text-red-400 text-sm">{error}</p>}
           {isUploading && (
@@ -106,8 +118,8 @@ export default function UploadModal({ onClose, onUploaded, userEmail }: Props) {
               <p className="text-gray-400 text-xs mb-1.5">{uploadMsg}</p>
               <div className="w-full bg-gray-700 rounded-full h-1.5">
                 <div
-                  className="bg-purple-500 h-1.5 rounded-full transition-all duration-300"
-                  style={{ width: `${uploadPct}%` }}
+                  className="h-1.5 rounded-full transition-all duration-300"
+                  style={{ width: `${uploadPct}%`, background: 'linear-gradient(90deg, #9a9a9a, #d8d8d8)' }}
                 />
               </div>
             </div>
@@ -124,7 +136,7 @@ export default function UploadModal({ onClose, onUploaded, userEmail }: Props) {
             <button
               type="submit"
               disabled={isUploading}
-              className="flex-1 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white py-2 rounded-lg text-sm"
+              className="btn-chrome flex-1 py-2 rounded-lg text-sm font-medium"
             >
               {isUploading ? 'Uploading...' : 'Upload'}
             </button>

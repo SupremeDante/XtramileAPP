@@ -44,7 +44,7 @@ export default function TrackCard({ track, isActive, isPlaying, onClick, onDelet
       {...attributes}
       onClick={handleClick}
       className={`relative bg-[var(--color-bg-elevated)] rounded-xl overflow-hidden ${
-        isActive ? 'ring-2 ring-purple-500' : ''
+        isActive ? 'ring-2 ring-[var(--color-accent-ring)]' : ''
       } ${isFolderTarget ? 'ring-2 ring-amber-400' : ''}`}
     >
       <div className="absolute top-2 right-2 z-20">
