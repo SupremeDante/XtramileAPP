@@ -63,7 +63,9 @@ export default function TrackCard({ track, isActive, isPlaying, onClick, onDelet
             draggable={false}
           />
         )}
-        <span className="relative z-10">{isFolderTarget ? '📁' : isPlaying ? '▶' : '♪'}</span>
+        {(isFolderTarget || isPlaying) && (
+          <span className="relative z-10">{isFolderTarget ? '📁' : '▶'}</span>
+        )}
       </div>
       <div className="p-3">
         <p className="text-[var(--color-text-primary)] text-sm font-semibold truncate">{track.title}</p>

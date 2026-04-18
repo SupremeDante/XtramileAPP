@@ -407,7 +407,7 @@ export default function TrackMenu({ track, onDeleted, onTrackUpdated, onAddToQue
       <button
         ref={buttonRef}
         onClick={handleOpen}
-        className="absolute top-2 right-2 w-6 h-6 flex items-center justify-center rounded-full bg-black/50 hover:bg-black/70 text-white text-xs leading-none"
+        className="btn-chrome-circle"
       >
         ⋮
       </button>

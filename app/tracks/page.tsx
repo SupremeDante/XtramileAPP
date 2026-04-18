@@ -194,10 +194,9 @@ export default function TracksPage() {
 
   return (
     <div className="min-h-screen bg-[var(--color-bg-base)] pb-24">
-      <nav className="bg-[var(--color-bg-surface)] border-b border-[var(--color-border)] px-6 py-3 flex items-center justify-between relative">
-        <span className="text-[var(--color-text-primary)] font-bold text-lg">🎵 Xtramile</span>
-        <img src="/assets/xtramile-logo.png" alt="Xtramile" className="absolute left-1/2 -translate-x-1/2" style={{ maxHeight: '48px', width: 'auto' }} />
-        <div className="flex items-center gap-4">
+      <nav className="bg-[var(--color-bg-surface)] border-b border-[var(--color-border)] px-6 py-3 flex items-center justify-between">
+        <span className="brand-chrome text-lg">XTRAMILE</span>
+<div className="flex items-center gap-4">
           <input
             type="search"
             placeholder="Search tracks..."
