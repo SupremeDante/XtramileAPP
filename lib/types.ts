@@ -9,6 +9,7 @@ export interface Track {
   key?: string
   display_order?: number | null
   folder_id?: string | null
+  cover_url?: string | null
 }
 
 export interface Folder {

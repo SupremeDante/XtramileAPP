@@ -47,13 +47,23 @@ export default function TrackCard({ track, isActive, isPlaying, onClick, onDelet
         isActive ? 'ring-2 ring-purple-500' : ''
       } ${isFolderTarget ? 'ring-2 ring-amber-400' : ''}`}
     >
-      <TrackMenu track={track} onDeleted={onDelete ?? ((_id: string) => {})} onTrackUpdated={onTrackUpdated ?? (() => {})} onAddToQueue={onAddToQueue} />
+      <div className="absolute top-2 right-2 z-20">
+        <TrackMenu track={track} onDeleted={onDelete ?? ((_id: string) => {})} onTrackUpdated={onTrackUpdated ?? (() => {})} onAddToQueue={onAddToQueue} />
+      </div>
       <div
         {...listeners}
-        className={`w-full aspect-square flex items-center justify-center text-3xl select-none ${isDragging ? 'cursor-grabbing' : 'cursor-default'}`}
-        style={getGradientStyle(track.id)}
+        className={`w-full aspect-square relative flex items-center justify-center text-3xl select-none ${isDragging ? 'cursor-grabbing' : 'cursor-default'}`}
+        style={track.cover_url ? undefined : getGradientStyle(track.id)}
       >
-        {isFolderTarget ? '📁' : isPlaying ? '▶' : '♪'}
+        {track.cover_url && (
+          <img
+            src={track.cover_url}
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+            draggable={false}
+          />
+        )}
+        <span className="relative z-10">{isFolderTarget ? '📁' : isPlaying ? '▶' : '♪'}</span>
       </div>
       <div className="p-3">
         <p className="text-[var(--color-text-primary)] text-sm font-semibold truncate">{track.title}</p>

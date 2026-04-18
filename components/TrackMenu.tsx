@@ -135,6 +135,7 @@ export default function TrackMenu({ track, onDeleted, onTrackUpdated, onAddToQue
   const [loadingMove, setLoadingMove] = useState(false)
   const buttonRef = useRef<HTMLButtonElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const coverInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     setIsOffline(localStorage.getItem(`offline_track_${track.id}`) !== null)
@@ -311,6 +312,46 @@ export default function TrackMenu({ track, onDeleted, onTrackUpdated, onAddToQue
     setToastMessage(`Added to queue: ${track.title}`)
   }
 
+  function handleChangeCover(e: React.MouseEvent) {
+    e.stopPropagation()
+    closeMenu()
+    coverInputRef.current?.click()
+  }
+
+  async function handleCoverFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+    const path = `${track.user_id}/${track.id}-${Date.now()}-${safeName}`
+    console.log('[cover] uploading file:', file.name, 'to bucket: covers, path:', path)
+    const { error: uploadError } = await supabase.storage.from('covers').upload(path, file)
+    if (uploadError) {
+      console.error('[cover] upload error:', uploadError)
+      setToastMessage(`Cover upload failed: ${uploadError.message}`)
+      return
+    }
+    const { data: { publicUrl } } = supabase.storage.from('covers').getPublicUrl(path)
+    console.log('[cover] public URL:', publicUrl)
+    const { error: updateError } = await supabase.from('tracks').update({ cover_url: publicUrl }).eq('id', track.id)
+    if (updateError) {
+      console.error('[cover] DB update error:', updateError)
+      setToastMessage('Failed to save cover')
+      return
+    }
+    if (coverInputRef.current) coverInputRef.current.value = ''
+    onDeleted('')
+    setToastMessage('Cover updated')
+  }
+
+  async function handleRemoveCover(e: React.MouseEvent) {
+    e.stopPropagation()
+    closeMenu()
+    const { error } = await supabase.from('tracks').update({ cover_url: null }).eq('id', track.id)
+    if (error) { setToastMessage('Failed to remove cover'); return }
+    onDeleted('')
+    setToastMessage('Cover removed')
+  }
+
   function handleVersionHistory(e: React.MouseEvent) {
     e.stopPropagation()
     closeMenu()
@@ -360,6 +401,7 @@ export default function TrackMenu({ track, onDeleted, onTrackUpdated, onAddToQue
   return (
     <>
       <input ref={fileInputRef} type="file" accept="audio/*" className="hidden" onChange={handleFileChange} />
+      <input ref={coverInputRef} type="file" accept="image/*" className="hidden" onChange={handleCoverFileChange} />
 
       <button
         ref={buttonRef}
@@ -389,6 +431,10 @@ export default function TrackMenu({ track, onDeleted, onTrackUpdated, onAddToQue
               </button>
             ) : (
               <button onClick={handleDownload} className={itemClass}>Download</button>
+            )}
+            <button onClick={handleChangeCover} className={itemClass}>Change Cover</button>
+            {track.cover_url && (
+              <button onClick={handleRemoveCover} className={itemClass}>Remove Cover</button>
             )}
             <button onClick={handleMove} className={itemClass}>Move</button>
             <button onClick={handleVersionHistory} className={itemClass}>Version History</button>
