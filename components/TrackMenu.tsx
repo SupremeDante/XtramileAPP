@@ -347,7 +347,7 @@ export default function TrackMenu({ track, onDeleted, onTrackUpdated, onAddToQue
 
       {open && createPortal(
         <>
-          <div className="fixed inset-0 z-40" onClick={closeMenu} />
+          <div className="fixed inset-0 z-40" onClick={e => { e.stopPropagation(); closeMenu() }} />
           <div
             className="fixed z-50 bg-[var(--color-bg-elevated)] border border-[var(--color-border)] rounded-xl shadow-xl py-1 w-44"
             style={{ top: menuPos.top, left: menuPos.left }}
@@ -376,7 +376,7 @@ export default function TrackMenu({ track, onDeleted, onTrackUpdated, onAddToQue
       )}
 
       {showNotes && createPortal(
-        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center" onClick={() => setShowNotes(false)}>
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center" onClick={e => { e.stopPropagation(); setShowNotes(false) }}>
           <div className="bg-[var(--color-bg-elevated)] rounded-2xl p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
             <h2 className="text-[var(--color-text-primary)] text-base font-semibold mb-3 truncate">{track.title} — Notes</h2>
             <textarea
@@ -398,7 +398,7 @@ export default function TrackMenu({ track, onDeleted, onTrackUpdated, onAddToQue
       )}
 
       {showInsights && createPortal(
-        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center" onClick={() => setShowInsights(false)}>
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center" onClick={e => { e.stopPropagation(); setShowInsights(false) }}>
           <div className="bg-[var(--color-bg-elevated)] rounded-2xl p-6 w-full max-w-sm mx-4" onClick={e => e.stopPropagation()}>
             <h2 className="text-[var(--color-text-primary)] text-base font-semibold mb-4 truncate">{track.title} — Insights</h2>
             {loadingInsights ? (
@@ -456,7 +456,7 @@ export default function TrackMenu({ track, onDeleted, onTrackUpdated, onAddToQue
       )}
 
       {showMove && createPortal(
-        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center" onClick={() => setShowMove(false)}>
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center" onClick={e => { e.stopPropagation(); setShowMove(false) }}>
           <div className="bg-[var(--color-bg-elevated)] rounded-2xl p-6 w-full max-w-sm mx-4" onClick={e => e.stopPropagation()}>
             <h2 className="text-[var(--color-text-primary)] text-base font-semibold mb-4 truncate">Move — {track.title}</h2>
             {loadingMove ? (

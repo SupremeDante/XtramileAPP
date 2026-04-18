@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useRef } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { Track } from '../lib/types'
@@ -19,6 +20,16 @@ interface Props {
 
 export default function TrackCard({ track, isActive, isPlaying, onClick, onDelete, onTrackUpdated, onAddToQueue, isFolderTarget }: Props) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: track.id })
+  const wasDragging = useRef(false)
+
+  useEffect(() => {
+    if (isDragging) wasDragging.current = true
+  }, [isDragging])
+
+  function handleClick() {
+    if (wasDragging.current) { wasDragging.current = false; return }
+    onClick()
+  }
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -31,7 +42,7 @@ export default function TrackCard({ track, isActive, isPlaying, onClick, onDelet
       ref={setNodeRef}
       style={style}
       {...attributes}
-      onClick={onClick}
+      onClick={handleClick}
       className={`relative bg-[var(--color-bg-elevated)] rounded-xl overflow-hidden ${
         isActive ? 'ring-2 ring-purple-500' : ''
       } ${isFolderTarget ? 'ring-2 ring-amber-400' : ''}`}
@@ -39,7 +50,7 @@ export default function TrackCard({ track, isActive, isPlaying, onClick, onDelet
       <TrackMenu track={track} onDeleted={onDelete ?? ((_id: string) => {})} onTrackUpdated={onTrackUpdated ?? (() => {})} onAddToQueue={onAddToQueue} />
       <div
         {...listeners}
-        className="w-full aspect-square flex items-center justify-center text-3xl select-none cursor-grab active:cursor-grabbing"
+        className={`w-full aspect-square flex items-center justify-center text-3xl select-none ${isDragging ? 'cursor-grabbing' : 'cursor-default'}`}
         style={getGradientStyle(track.id)}
       >
         {isFolderTarget ? '📁' : isPlaying ? '▶' : '♪'}
