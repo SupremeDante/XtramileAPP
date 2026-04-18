@@ -55,9 +55,13 @@ export default function PlayerBar({ track, isPlaying, audioRef, onPlayPause, onP
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-[var(--color-bg-player)] border-t border-[var(--color-border)] px-5 py-3 flex items-center gap-5">
       <div
-        className="w-11 h-11 rounded-md flex-shrink-0"
-        style={getGradientStyle(track.id)}
-      />
+        className="w-11 h-11 rounded-md flex-shrink-0 relative overflow-hidden"
+        style={track.cover_url ? undefined : getGradientStyle(track.id)}
+      >
+        {track.cover_url && (
+          <img src={track.cover_url} alt="" className="absolute inset-0 w-full h-full object-cover" draggable={false} />
+        )}
+      </div>
       <div className="flex-1 min-w-0">
         <p className="text-[var(--color-text-primary)] text-sm font-semibold truncate">{track.title}</p>
         <p className="text-gray-500 text-xs truncate">{track.uploader_email.split('@')[0]}</p>

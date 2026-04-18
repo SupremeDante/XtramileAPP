@@ -1,45 +1,45 @@
 @import "tailwindcss";
 
 :root {
-  --color-bg-base: #0f0f1a;
-  --color-bg-surface: #1a1a2e;
-  --color-bg-elevated: #1e1e30;
-  --color-bg-player: #13131f;
-  --color-border: #2a2a3e;
+  --color-bg-base: #000000;
+  --color-bg-surface: #111111;
+  --color-bg-elevated: #1a1a1a;
+  --color-bg-player: #0a0a0a;
+  --color-border: #222222;
   --color-border-input: #333333;
   --color-bg-cancel: #333333;
   --color-bg-cancel-hov: #444444;
   --color-bg-progress: #333333;
   --color-text-primary: #ffffff;
-  --color-text-label: #e0e0ff;
+  --color-text-label: #a0a0a0;
 }
 
 [data-theme="light"] {
-  --color-bg-base: #f0f0f8;
-  --color-bg-surface: #ffffff;
-  --color-bg-elevated: #f5f5ff;
-  --color-bg-player: #ffffff;
-  --color-border: #e2e2f0;
-  --color-border-input: #d0d0e0;
-  --color-bg-cancel: #e8e8f0;
-  --color-bg-cancel-hov: #d8d8e8;
-  --color-bg-progress: #e0e0f0;
-  --color-text-primary: #1a1a2e;
-  --color-text-label: #5a5a8a;
+  --color-bg-base: #ffffff;
+  --color-bg-surface: #f5f5f5;
+  --color-bg-elevated: #ebebeb;
+  --color-bg-player: #f0f0f0;
+  --color-border: #e0e0e0;
+  --color-border-input: #cccccc;
+  --color-bg-cancel: #e8e8e8;
+  --color-bg-cancel-hov: #d8d8d8;
+  --color-bg-progress: #e0e0e0;
+  --color-text-primary: #000000;
+  --color-text-label: #555555;
 }
 
 @media (prefers-color-scheme: light) {
   [data-theme="system"] {
-    --color-bg-base: #f0f0f8;
-    --color-bg-surface: #ffffff;
-    --color-bg-elevated: #f5f5ff;
-    --color-bg-player: #ffffff;
-    --color-border: #e2e2f0;
-    --color-border-input: #d0d0e0;
-    --color-bg-cancel: #e8e8f0;
-    --color-bg-cancel-hov: #d8d8e8;
-    --color-bg-progress: #e0e0f0;
-    --color-text-primary: #1a1a2e;
-    --color-text-label: #5a5a8a;
+    --color-bg-base: #ffffff;
+    --color-bg-surface: #f5f5f5;
+    --color-bg-elevated: #ebebeb;
+    --color-bg-player: #f0f0f0;
+    --color-border: #e0e0e0;
+    --color-border-input: #cccccc;
+    --color-bg-cancel: #e8e8e8;
+    --color-bg-cancel-hov: #d8d8d8;
+    --color-bg-progress: #e0e0e0;
+    --color-text-primary: #000000;
+    --color-text-label: #555555;
   }
 }
