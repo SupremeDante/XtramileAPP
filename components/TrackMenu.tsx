@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom'
 import Meyda from 'meyda'
 import { supabase } from '../lib/supabase'
 import { Track } from '../lib/types'
+import { withUploadProgress } from '../lib/uploadProgress'
 import VersionHistoryModal from './VersionHistoryModal'
 
 interface Props {
@@ -175,28 +176,33 @@ export default function TrackMenu({ track, onDeleted, onTrackUpdated, onAddToQue
     if (!file) return
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
     const newPath = `${track.user_id}/${Date.now()}-${safeName}`
-    const { error: uploadError } = await supabase.storage.from('audio').upload(newPath, file)
-    if (uploadError) { setToastMessage('Upload failed'); return }
+    try {
+      await withUploadProgress((msg) => setToastMessage(msg), 'Uploading audio', async () => {
+        const { error: uploadError } = await supabase.storage.from('audio').upload(newPath, file)
+        if (uploadError) throw new Error('Upload failed')
 
-    const { data: versions } = await supabase
-      .from('track_versions')
-      .select('version_number')
-      .eq('track_id', track.id)
-      .order('version_number', { ascending: false })
-      .limit(1)
-    const nextVersion = (versions?.[0]?.version_number ?? 0) + 1
+        const { data: versions } = await supabase
+          .from('track_versions')
+          .select('version_number')
+          .eq('track_id', track.id)
+          .order('version_number', { ascending: false })
+          .limit(1)
+        const nextVersion = (versions?.[0]?.version_number ?? 0) + 1
 
-    await supabase.from('track_versions').update({ is_active: false }).eq('track_id', track.id)
-    await supabase.from('track_versions').insert({
-      track_id: track.id,
-      version_number: nextVersion,
-      file_path: newPath,
-      is_active: true,
-    })
-    await supabase.from('tracks').update({ file_path: newPath }).eq('id', track.id)
-
-    if (fileInputRef.current) fileInputRef.current.value = ''
-    onDeleted('')
+        await supabase.from('track_versions').update({ is_active: false }).eq('track_id', track.id)
+        await supabase.from('track_versions').insert({
+          track_id: track.id,
+          version_number: nextVersion,
+          file_path: newPath,
+          is_active: true,
+        })
+        await supabase.from('tracks').update({ file_path: newPath }).eq('id', track.id)
+      })
+      if (fileInputRef.current) fileInputRef.current.value = ''
+      onDeleted('')
+    } catch {
+      setToastMessage('Upload failed')
+    }
   }
 
   function handleNotes(e: React.MouseEvent) {
@@ -323,24 +329,19 @@ export default function TrackMenu({ track, onDeleted, onTrackUpdated, onAddToQue
     if (!file) return
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
     const path = `${track.user_id}/${track.id}-${Date.now()}-${safeName}`
-    console.log('[cover] uploading file:', file.name, 'to bucket: covers, path:', path)
-    const { error: uploadError } = await supabase.storage.from('covers').upload(path, file)
-    if (uploadError) {
-      console.error('[cover] upload error:', uploadError)
-      setToastMessage(`Cover upload failed: ${uploadError.message}`)
-      return
+    try {
+      await withUploadProgress((msg) => setToastMessage(msg), 'Uploading cover', async () => {
+        const { error: uploadError } = await supabase.storage.from('covers').upload(path, file)
+        if (uploadError) throw new Error(uploadError.message)
+        const { data: { publicUrl } } = supabase.storage.from('covers').getPublicUrl(path)
+        const { error: updateError } = await supabase.from('tracks').update({ cover_url: publicUrl }).eq('id', track.id)
+        if (updateError) throw new Error('Failed to save cover')
+      })
+      if (coverInputRef.current) coverInputRef.current.value = ''
+      onDeleted('')
+    } catch (err) {
+      setToastMessage(err instanceof Error ? err.message : 'Cover upload failed')
     }
-    const { data: { publicUrl } } = supabase.storage.from('covers').getPublicUrl(path)
-    console.log('[cover] public URL:', publicUrl)
-    const { error: updateError } = await supabase.from('tracks').update({ cover_url: publicUrl }).eq('id', track.id)
-    if (updateError) {
-      console.error('[cover] DB update error:', updateError)
-      setToastMessage('Failed to save cover')
-      return
-    }
-    if (coverInputRef.current) coverInputRef.current.value = ''
-    onDeleted('')
-    setToastMessage('Cover updated')
   }
 
   async function handleRemoveCover(e: React.MouseEvent) {

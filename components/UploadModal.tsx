@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { withUploadProgress } from '../lib/uploadProgress'
 
 interface Props {
   onClose: () => void
@@ -12,8 +13,11 @@ interface Props {
 export default function UploadModal({ onClose, onUploaded, userEmail }: Props) {
   const [title, setTitle] = useState('')
   const [file, setFile] = useState<File | null>(null)
-  const [uploading, setUploading] = useState(false)
+  const [uploadMsg, setUploadMsg] = useState('')
+  const [uploadPct, setUploadPct] = useState(0)
   const [error, setError] = useState<string | null>(null)
+
+  const isUploading = uploadMsg !== ''
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -21,34 +25,49 @@ export default function UploadModal({ onClose, onUploaded, userEmail }: Props) {
       setError('Title and audio file are required.')
       return
     }
-    setUploading(true)
     setError(null)
 
     const { data: { session } } = await supabase.auth.getSession()
-    if (!session) { setError('Not authenticated.'); setUploading(false); return }
+    if (!session) { setError('Not authenticated.'); return }
 
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
     const filePath = `${session.user.id}/${Date.now()}-${safeName}`
-    const { error: uploadError } = await supabase.storage.from('audio').upload(filePath, file)
-    if (uploadError) { setError(uploadError.message); setUploading(false); return }
 
-    const { data: trackData, error: insertError } = await supabase.from('tracks').insert({
-      title: title.trim(),
-      file_path: filePath,
-      user_id: session.user.id,
-      uploader_email: userEmail,
-    }).select('id').single()
-    if (insertError || !trackData) { setError(insertError?.message ?? 'Insert failed'); setUploading(false); return }
+    try {
+      await withUploadProgress(
+        (msg, pct) => { setUploadMsg(msg); setUploadPct(pct) },
+        'Uploading audio',
+        async () => {
+          const { error: uploadError } = await supabase.storage.from('audio').upload(filePath, file)
+          if (uploadError) throw new Error(uploadError.message)
 
-    await supabase.from('track_versions').insert({
-      track_id: trackData.id,
-      version_number: 1,
-      file_path: filePath,
-      is_active: true,
-    })
+          const { data: trackData, error: insertError } = await supabase
+            .from('tracks')
+            .insert({
+              title: title.trim(),
+              file_path: filePath,
+              user_id: session.user.id,
+              uploader_email: userEmail,
+            })
+            .select('id')
+            .single()
+          if (insertError || !trackData) throw new Error(insertError?.message ?? 'Insert failed')
 
-    setUploading(false)
-    onUploaded()
+          await supabase.from('track_versions').insert({
+            track_id: trackData.id,
+            version_number: 1,
+            file_path: filePath,
+            is_active: true,
+          })
+        }
+      )
+      await new Promise(r => setTimeout(r, 1000))
+      onUploaded()
+    } catch (err) {
+      setUploadMsg('')
+      setUploadPct(0)
+      setError(err instanceof Error ? err.message : 'Upload failed')
+    }
   }
 
   return (
@@ -82,20 +101,32 @@ export default function UploadModal({ onClose, onUploaded, userEmail }: Props) {
             />
           </div>
           {error && <p className="text-red-400 text-sm">{error}</p>}
+          {isUploading && (
+            <div>
+              <p className="text-gray-400 text-xs mb-1.5">{uploadMsg}</p>
+              <div className="w-full bg-gray-700 rounded-full h-1.5">
+                <div
+                  className="bg-purple-500 h-1.5 rounded-full transition-all duration-300"
+                  style={{ width: `${uploadPct}%` }}
+                />
+              </div>
+            </div>
+          )}
           <div className="flex gap-3 pt-2">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 bg-[var(--color-bg-cancel)] hover:bg-[var(--color-bg-cancel-hov)] text-[var(--color-text-primary)] py-2 rounded-lg text-sm"
+              disabled={isUploading}
+              className="flex-1 bg-[var(--color-bg-cancel)] hover:bg-[var(--color-bg-cancel-hov)] disabled:opacity-50 text-[var(--color-text-primary)] py-2 rounded-lg text-sm"
             >
               Cancel
             </button>
             <button
               type="submit"
-              disabled={uploading}
+              disabled={isUploading}
               className="flex-1 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white py-2 rounded-lg text-sm"
             >
-              {uploading ? 'Uploading...' : 'Upload'}
+              {isUploading ? 'Uploading...' : 'Upload'}
             </button>
           </div>
         </form>
