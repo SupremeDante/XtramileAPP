@@ -3,13 +3,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
-import { Track } from '../../lib/types'
+import { Track, Folder } from '../../lib/types'
+import FolderCard from '../../components/FolderCard'
 import TrackCard from '../../components/TrackCard'
 import UploadModal from '../../components/UploadModal'
 import PlayerBar from '../../components/PlayerBar'
 import { getTheme, saveTheme, applyTheme, ThemePreference } from '../../lib/theme'
 import { getProfile, createProfile, getAvatarColor } from '../../lib/profile'
-import { DndContext, DragEndEvent, DragStartEvent, PointerSensor, KeyboardSensor, useSensor, useSensors, closestCenter } from '@dnd-kit/core'
+import { DndContext, DragEndEvent, DragStartEvent, DragOverEvent, PointerSensor, KeyboardSensor, useSensor, useSensors, closestCenter } from '@dnd-kit/core'
 import { SortableContext, arrayMove, rectSortingStrategy, sortableKeyboardCoordinates } from '@dnd-kit/sortable'
 
 export default function TracksPage() {
@@ -25,8 +26,17 @@ export default function TracksPage() {
   const [theme, setTheme] = useState<ThemePreference>('system')
   const [searchQuery, setSearchQuery] = useState('')
   const [queue, setQueue] = useState<Track[]>([])
+  const [folders, setFolders] = useState<Folder[]>([])
+  const [folderView, setFolderView] = useState<Folder | null>(null)
+  const [folderTarget, setFolderTarget] = useState<string | null>(null)
+  const [showCreateFolder, setShowCreateFolder] = useState(false)
+  const [createFolderName, setCreateFolderName] = useState('')
+  const [creatingFolder, setCreatingFolder] = useState(false)
   const audioRef = useRef<HTMLAudioElement>(null)
   const playLoggedRef = useRef(false)
+  const folderTargetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pendingFolderTargetRef = useRef<string | null>(null)
+  const pendingFolderTracksRef = useRef<[string, string] | null>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -51,6 +61,7 @@ export default function TracksPage() {
       setTheme(savedTheme)
       applyTheme(savedTheme)
       await fetchTracks(session.user.id)
+      await fetchFolders(session.user.id)
     }
     init()
   }, [])
@@ -86,6 +97,15 @@ export default function TracksPage() {
     if (!error && data) setTracks(data as Track[])
   }
 
+  async function fetchFolders(uid?: string) {
+    const { data } = await supabase
+      .from('folders')
+      .select('*')
+      .eq('user_id', uid ?? userId)
+      .order('created_at', { ascending: true })
+    if (data) setFolders(data as Folder[])
+  }
+
   async function saveDisplayOrder(ordered: Track[]) {
     await Promise.all(
       ordered.map((t, i) =>
@@ -94,10 +114,86 @@ export default function TracksPage() {
     )
   }
 
+  async function handleDeleteFolder(folderId: string) {
+    await supabase.from('tracks').update({ folder_id: null }).eq('folder_id', folderId)
+    await supabase.from('folders').delete().eq('id', folderId)
+    setFolders(prev => prev.filter(f => f.id !== folderId))
+    setTracks(prev => prev.map(t => t.folder_id === folderId ? { ...t, folder_id: null } : t))
+    if (folderView?.id === folderId) setFolderView(null)
+  }
+
+  async function handleRenameFolder(folder: Folder, newName: string) {
+    await supabase.from('folders').update({ name: newName }).eq('id', folder.id)
+    setFolders(prev => prev.map(f => f.id === folder.id ? { ...f, name: newName } : f))
+    if (folderView?.id === folder.id) setFolderView(prev => prev ? { ...prev, name: newName } : null)
+  }
+
+  function handleFolderCreatedFromMenu() {
+    fetchFolders()
+    fetchTracks()
+  }
+
+  async function handleFolderDrop(name: string) {
+    if (!pendingFolderTracksRef.current) return
+    const [trackAId, trackBId] = pendingFolderTracksRef.current
+    pendingFolderTracksRef.current = null
+    setCreatingFolder(true)
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) { setCreatingFolder(false); return }
+    const { data: folder, error } = await supabase
+      .from('folders')
+      .insert({ user_id: session.user.id, name: name.trim() })
+      .select()
+      .single()
+    if (!error && folder) {
+      await Promise.all([
+        supabase.from('tracks').update({ folder_id: folder.id }).eq('id', trackAId),
+        supabase.from('tracks').update({ folder_id: folder.id }).eq('id', trackBId),
+      ])
+      await fetchFolders()
+      await fetchTracks()
+    }
+    setCreatingFolder(false)
+    setShowCreateFolder(false)
+  }
+
   function handleDragStart(_event: DragStartEvent) {}
+
+  function handleDragOver(event: DragOverEvent) {
+    const { over, active } = event
+    if (!over || (over.id as string) === (active.id as string)) {
+      if (folderTargetTimerRef.current) clearTimeout(folderTargetTimerRef.current)
+      pendingFolderTargetRef.current = null
+      setFolderTarget(null)
+      return
+    }
+    const overId = over.id as string
+    const isUnfolderedTrack = tracks.some(t => t.id === overId && !t.folder_id)
+    if (isUnfolderedTrack && pendingFolderTargetRef.current !== overId) {
+      if (folderTargetTimerRef.current) clearTimeout(folderTargetTimerRef.current)
+      pendingFolderTargetRef.current = overId
+      folderTargetTimerRef.current = setTimeout(() => setFolderTarget(overId), 1000)
+    } else if (!isUnfolderedTrack) {
+      if (folderTargetTimerRef.current) clearTimeout(folderTargetTimerRef.current)
+      pendingFolderTargetRef.current = null
+      setFolderTarget(null)
+    }
+  }
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
+    if (folderTargetTimerRef.current) clearTimeout(folderTargetTimerRef.current)
+    pendingFolderTargetRef.current = null
+
+    if (folderTarget && over && folderTarget === (over.id as string) && active.id !== over.id) {
+      pendingFolderTracksRef.current = [active.id as string, over.id as string]
+      setFolderTarget(null)
+      setCreateFolderName('')
+      setShowCreateFolder(true)
+      return
+    }
+    setFolderTarget(null)
+
     if (!over || active.id === over.id) return
     const oldIdx = tracks.findIndex(t => t.id === active.id)
     const newIdx = tracks.findIndex(t => t.id === over.id)
@@ -257,19 +353,22 @@ export default function TracksPage() {
       </nav>
 
       <main className="p-6">
-        <h2 className="text-[var(--color-text-label)] text-xs uppercase tracking-widest mb-5">All Tracks</h2>
-        {tracks.length === 0 ? (
-          <p className="text-gray-600 text-sm">No tracks yet. Upload the first one!</p>
-        ) : (
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragStart={handleDragStart}
-            onDragEnd={handleDragEnd}
-          >
-            <SortableContext items={filteredTracks.map(t => t.id)} strategy={rectSortingStrategy}>
+        {folderView ? (
+          <>
+            <div className="flex items-center gap-3 mb-5">
+              <button
+                onClick={() => setFolderView(null)}
+                className="text-gray-500 hover:text-[var(--color-text-primary)] text-sm transition-colors"
+              >
+                ← Back
+              </button>
+              <h2 className="text-[var(--color-text-primary)] text-base font-semibold">{folderView.name}</h2>
+            </div>
+            {tracks.filter(t => t.folder_id === folderView.id).length === 0 ? (
+              <p className="text-gray-600 text-sm">This folder is empty.</p>
+            ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                {filteredTracks.map(track => (
+                {tracks.filter(t => t.folder_id === folderView.id).map(track => (
                   <TrackCard
                     key={track.id}
                     track={track}
@@ -279,13 +378,91 @@ export default function TracksPage() {
                     onDelete={handleTrackDeleted}
                     onTrackUpdated={handleTrackUpdated}
                     onAddToQueue={addToQueue}
+                    onFolderCreated={handleFolderCreatedFromMenu}
                   />
                 ))}
               </div>
-            </SortableContext>
-          </DndContext>
+            )}
+          </>
+        ) : (
+          <>
+            {folders.length > 0 && (
+              <div className="mb-8">
+                <h2 className="text-[var(--color-text-label)] text-xs uppercase tracking-widest mb-3">Folders</h2>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {folders.map(folder => (
+                    <FolderCard
+                      key={folder.id}
+                      folder={folder}
+                      trackCount={tracks.filter(t => t.folder_id === folder.id).length}
+                      onClick={() => setFolderView(folder)}
+                      onRename={handleRenameFolder}
+                      onDelete={handleDeleteFolder}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+            <h2 className="text-[var(--color-text-label)] text-xs uppercase tracking-widest mb-5">All Tracks</h2>
+            {filteredTracks.filter(t => !t.folder_id).length === 0 && folders.length === 0 ? (
+              <p className="text-gray-600 text-sm">No tracks yet. Upload the first one!</p>
+            ) : filteredTracks.filter(t => !t.folder_id).length === 0 ? (
+              <p className="text-gray-600 text-sm">All tracks are in folders.</p>
+            ) : (
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragStart={handleDragStart}
+                onDragOver={handleDragOver}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext items={filteredTracks.filter(t => !t.folder_id).map(t => t.id)} strategy={rectSortingStrategy}>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {filteredTracks.filter(t => !t.folder_id).map(track => (
+                      <TrackCard
+                        key={track.id}
+                        track={track}
+                        isActive={activeTrack?.id === track.id}
+                        isPlaying={isPlaying && activeTrack?.id === track.id}
+                        onClick={() => handleTrackClick(track)}
+                        onDelete={handleTrackDeleted}
+                        onTrackUpdated={handleTrackUpdated}
+                        onAddToQueue={addToQueue}
+                        onFolderCreated={handleFolderCreatedFromMenu}
+                        isFolderTarget={folderTarget === track.id}
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
+            )}
+          </>
         )}
       </main>
+
+      {showCreateFolder && (
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center" onClick={() => { setShowCreateFolder(false); pendingFolderTracksRef.current = null }}>
+          <div className="bg-[var(--color-bg-elevated)] rounded-2xl p-6 w-full max-w-xs mx-4" onClick={e => e.stopPropagation()}>
+            <h2 className="text-[var(--color-text-primary)] text-base font-semibold mb-1">New Folder</h2>
+            <p className="text-gray-500 text-xs mb-3">Name your folder for the 2 tracks being grouped.</p>
+            <input
+              type="text"
+              value={createFolderName}
+              onChange={e => setCreateFolderName(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && createFolderName.trim() && handleFolderDrop(createFolderName)}
+              placeholder="Folder name"
+              autoFocus
+              className="w-full bg-[var(--color-bg-base)] border border-[var(--color-border-input)] rounded-lg px-3 py-2 text-[var(--color-text-primary)] text-sm focus:outline-none focus:border-purple-500 mb-4"
+            />
+            <div className="flex gap-3">
+              <button onClick={() => { setShowCreateFolder(false); pendingFolderTracksRef.current = null }} className="flex-1 bg-[var(--color-bg-cancel)] hover:bg-[var(--color-bg-cancel-hov)] text-[var(--color-text-primary)] py-2 rounded-lg text-sm">Cancel</button>
+              <button onClick={() => handleFolderDrop(createFolderName)} disabled={creatingFolder || !createFolderName.trim()} className="flex-1 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white py-2 rounded-lg text-sm">
+                {creatingFolder ? 'Creating...' : 'Create'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <audio ref={audioRef} onEnded={handleNext} onPlay={handleAudioPlay} />
 

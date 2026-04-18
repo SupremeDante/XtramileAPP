@@ -67,11 +67,15 @@ export default function PlayerBar({ track, isPlaying, audioRef, onPlayPause, onP
         <p className="text-gray-500 text-xs truncate">{track.uploader_email.split('@')[0]}</p>
       </div>
       <div className="flex items-center gap-4">
-        <button onClick={onPrev} className="opacity-60 hover:opacity-100 transition-opacity text-xl flex items-center justify-center w-7 h-7">⏮</button>
-        <button onClick={onPlayPause} className="opacity-90 hover:opacity-100 transition-opacity text-xl flex items-center justify-center w-7 h-7">
-          {isPlaying ? '⏸' : '▶'}
+        <button onClick={onPrev} aria-label="Previous Track" className="opacity-70 hover:opacity-100 hover:scale-105 transition-all flex items-center justify-center w-7 h-7">
+          <img src="/icons/back-button.png" alt="Previous Track" className="w-7 h-7 object-contain" draggable={false} />
         </button>
-        <button onClick={onNext} className="opacity-60 hover:opacity-100 transition-opacity text-xl flex items-center justify-center w-7 h-7">⏭</button>
+        <button onClick={onPlayPause} className="opacity-90 hover:opacity-100 hover:scale-105 transition-all flex items-center justify-center w-7 h-7" aria-label={isPlaying ? 'Pause' : 'Play'}>
+          <img src={isPlaying ? '/icons/pause-button.png' : '/icons/play-button.png'} alt={isPlaying ? 'Pause' : 'Play'} className="w-7 h-7 object-contain" draggable={false} />
+        </button>
+        <button onClick={onNext} aria-label="Next Track" className="opacity-70 hover:opacity-100 hover:scale-105 transition-all flex items-center justify-center w-7 h-7">
+          <img src="/icons/next-button.png" alt="Next Track" className="w-7 h-7 object-contain" draggable={false} />
+        </button>
       </div>
       <div className="flex flex-1 items-center gap-3 max-w-md">
         <span className="text-gray-500 text-xs w-8 text-right">{currentTime}</span>

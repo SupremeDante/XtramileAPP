@@ -15,10 +15,11 @@ interface Props {
   onDelete?: (trackId: string) => void
   onTrackUpdated?: (track: Track) => void
   onAddToQueue?: (track: Track) => void
+  onFolderCreated?: () => void
   isFolderTarget?: boolean
 }
 
-export default function TrackCard({ track, isActive, isPlaying, onClick, onDelete, onTrackUpdated, onAddToQueue, isFolderTarget }: Props) {
+export default function TrackCard({ track, isActive, isPlaying: _isPlaying, onClick, onDelete, onTrackUpdated, onAddToQueue, onFolderCreated, isFolderTarget }: Props) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: track.id })
   const wasDragging = useRef(false)
 
@@ -48,7 +49,7 @@ export default function TrackCard({ track, isActive, isPlaying, onClick, onDelet
       } ${isFolderTarget ? 'ring-2 ring-amber-400' : ''}`}
     >
       <div className="absolute top-2 right-2 z-20">
-        <TrackMenu track={track} onDeleted={onDelete ?? ((_id: string) => {})} onTrackUpdated={onTrackUpdated ?? (() => {})} onAddToQueue={onAddToQueue} />
+        <TrackMenu track={track} onDeleted={onDelete ?? ((_id: string) => {})} onTrackUpdated={onTrackUpdated ?? (() => {})} onAddToQueue={onAddToQueue} onFolderCreated={onFolderCreated} />
       </div>
       <div
         {...listeners}
@@ -63,7 +64,12 @@ export default function TrackCard({ track, isActive, isPlaying, onClick, onDelet
             draggable={false}
           />
         )}
-        <span className="relative z-10">{isFolderTarget ? '📁' : isPlaying ? '⏸' : '▶'}</span>
+        {isFolderTarget && (
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-amber-500/40 pointer-events-none">
+            <span className="text-4xl">📁</span>
+            <span className="text-white text-[10px] font-bold mt-1.5 bg-black/55 px-2.5 py-0.5 rounded-full">Drop to create folder</span>
+          </div>
+        )}
       </div>
       <div className="p-3">
         <p className="text-[var(--color-text-primary)] text-sm font-semibold truncate">{track.title.replace(/_/g, ' ')}</p>
