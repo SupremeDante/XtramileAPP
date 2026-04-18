@@ -5,6 +5,28 @@ import { createPortal } from 'react-dom'
 import { supabase } from '../lib/supabase'
 import { Track, TrackVersion } from '../lib/types'
 
+function timeAgo(dateStr: string): string {
+  const secs = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000)
+  if (secs < 60) return 'just now'
+  const mins = Math.floor(secs / 60)
+  if (mins < 60) return `${mins} minute${mins === 1 ? '' : 's'} ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs} hour${hrs === 1 ? '' : 's'} ago`
+  const days = Math.floor(hrs / 24)
+  if (days === 1) return 'yesterday'
+  if (days < 7) return `${days} days ago`
+  const wks = Math.floor(days / 7)
+  if (wks < 5) return `${wks} week${wks === 1 ? '' : 's'} ago`
+  const mos = Math.floor(days / 30)
+  return `${mos} month${mos === 1 ? '' : 's'} ago`
+}
+
+function fileLabel(filePath: string): string {
+  const name = filePath.split('/').pop() ?? filePath
+  const stripped = name.replace(/^\d+-/, '')
+  return stripped.replace(/\.[^.]+$/, '').replace(/_/g, ' ')
+}
+
 interface Props {
   track: Track
   onClose: () => void
@@ -61,22 +83,22 @@ export default function VersionHistoryModal({ track, onClose, onVersionActivated
           <ul className="space-y-2 mb-4">
             {versions.map(v => (
               <li key={v.id} className="flex items-center justify-between gap-3">
-                <div>
-                  <span className="text-[var(--color-text-primary)] text-sm font-medium">
-                    v{v.version_number}
-                  </span>
-                  <span className="text-gray-500 text-xs ml-2">
-                    {new Date(v.created_at).toLocaleDateString()}
-                  </span>
-                  {v.is_active && (
-                    <span className="ml-2 text-xs text-purple-400 font-medium">active</span>
-                  )}
+                <div className="min-w-0">
+                  <p className="text-[var(--color-text-primary)] text-sm font-medium truncate">
+                    {fileLabel(v.file_path)}
+                  </p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-gray-500 text-xs">{timeAgo(v.created_at)}</span>
+                    {v.is_active && (
+                      <span className="text-xs text-[var(--color-text-label)] font-medium">· active</span>
+                    )}
+                  </div>
                 </div>
                 {!v.is_active && (
                   <button
                     onClick={() => handleActivate(v)}
                     disabled={activating === v.id}
-                    className="text-xs bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white px-3 py-1 rounded-lg transition-colors"
+                    className="btn-chrome text-xs px-3 py-1 rounded-lg flex-shrink-0"
                   >
                     {activating === v.id ? '...' : 'Restore'}
                   </button>

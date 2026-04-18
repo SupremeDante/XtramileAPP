@@ -26,6 +26,7 @@ export default function TracksPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [queue, setQueue] = useState<Track[]>([])
   const audioRef = useRef<HTMLAudioElement>(null)
+  const playLoggedRef = useRef(false)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -114,6 +115,20 @@ export default function TracksPage() {
     setIsPlaying(true)
   }
 
+  async function handleAudioPlay() {
+    if (playLoggedRef.current || !activeTrack) return
+    playLoggedRef.current = true
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
+    console.log('PLAY USER:', user)
+    if (!user) return
+    const { data, error } = await supabase.from('track_plays').insert({
+      track_id: activeTrack.id,
+      user_id: user.id,
+    })
+    console.log('PLAY INSERT RESULT:', { data, error })
+  }
+
   function togglePlayPause() {
     if (!audioRef.current) return
     if (isPlaying) {
@@ -148,6 +163,10 @@ export default function TracksPage() {
     setActiveTrack(tracks[(idx + 1) % tracks.length])
     setIsPlaying(true)
   }
+
+  useEffect(() => {
+    playLoggedRef.current = false
+  }, [activeTrack?.id])
 
   useEffect(() => {
     if (!activeTrack || !audioRef.current) return
@@ -268,7 +287,7 @@ export default function TracksPage() {
         )}
       </main>
 
-      <audio ref={audioRef} onEnded={handleNext} />
+      <audio ref={audioRef} onEnded={handleNext} onPlay={handleAudioPlay} />
 
       {showUpload && (
         <UploadModal

@@ -124,6 +124,8 @@ export default function TrackMenu({ track, onDeleted, onTrackUpdated, onAddToQue
   const [showInsights, setShowInsights] = useState(false)
   const [insightsData, setInsightsData] = useState<InsightsData | null>(null)
   const [loadingInsights, setLoadingInsights] = useState(false)
+  const [playCount, setPlayCount] = useState<number | null>(null)
+  const [playUsers, setPlayUsers] = useState<string[]>([])
   const [editBpm, setEditBpm] = useState('')
   const [editKey, setEditKey] = useState('')
   const [analyzing, setAnalyzing] = useState(false)
@@ -246,17 +248,36 @@ export default function TrackMenu({ track, onDeleted, onTrackUpdated, onAddToQue
     onDeleted('')
   }
 
+  async function fetchPlayData() {
+    const { data: playsData } = await supabase
+      .from('track_plays')
+      .select('user_id')
+      .eq('track_id', track.id)
+    if (playsData) {
+      setPlayCount(playsData.length)
+      const unique = [...new Set(playsData.map((p: { user_id: string }) => p.user_id))]
+      setPlayUsers(unique)
+    }
+  }
+
+  useEffect(() => {
+    if (!showInsights) return
+    fetchPlayData()
+    const id = setInterval(fetchPlayData, 4000)
+    return () => clearInterval(id)
+  }, [showInsights, track.id])
+
   async function handleInsights(e: React.MouseEvent) {
     e.stopPropagation()
     closeMenu()
     setLoadingInsights(true)
     setShowInsights(true)
-    const { data } = await supabase
+    const { data: trackData } = await supabase
       .from('tracks')
       .select('title, uploader_email, bpm, key, created_at')
       .eq('id', track.id)
       .single()
-    setInsightsData(data ?? null)
+    setInsightsData(trackData ?? null)
     setLoadingInsights(false)
   }
 
@@ -486,6 +507,18 @@ export default function TrackMenu({ track, onDeleted, onTrackUpdated, onAddToQue
                     <dt className="text-gray-500 text-sm">Date added</dt>
                     <dd className="text-[var(--color-text-primary)] text-sm">{new Date(insightsData.created_at).toLocaleDateString()}</dd>
                   </div>
+                  <div className="flex justify-between">
+                    <dt className="text-gray-500 text-sm">Total plays</dt>
+                    <dd className="text-[var(--color-text-primary)] text-sm">{playCount ?? 0}</dd>
+                  </div>
+                  {playUsers.length > 0 && (
+                    <div>
+                      <dt className="text-gray-500 text-sm mb-1">Played by</dt>
+                      <dd className="text-[var(--color-text-primary)] text-xs leading-relaxed">
+                        {playUsers.join(', ')}
+                      </dd>
+                    </div>
+                  )}
                 </dl>
                 <div className="space-y-3 mb-4">
                   <div>

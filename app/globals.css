@@ -62,6 +62,27 @@
   opacity: 0.5;
 }
 
+@keyframes inner-glow {
+  0%   { left: -60%; }
+  100% { left: 120%; }
+}
+
+.progress-inner-glow {
+  position: absolute;
+  top: 0;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.72) 50%, transparent 100%);
+  filter: blur(1px);
+  animation: inner-glow 1.8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.progress-inner-glow.paused {
+  animation-play-state: paused;
+}
+
+
 .btn-chrome-circle {
   position: absolute;
   top: 0.5rem;

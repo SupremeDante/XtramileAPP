@@ -63,12 +63,10 @@ export default function TrackCard({ track, isActive, isPlaying, onClick, onDelet
             draggable={false}
           />
         )}
-        {(isFolderTarget || isPlaying) && (
-          <span className="relative z-10">{isFolderTarget ? '📁' : '▶'}</span>
-        )}
+        <span className="relative z-10">{isFolderTarget ? '📁' : isPlaying ? '⏸' : '▶'}</span>
       </div>
       <div className="p-3">
-        <p className="text-[var(--color-text-primary)] text-sm font-semibold truncate">{track.title}</p>
+        <p className="text-[var(--color-text-primary)] text-sm font-semibold truncate">{track.title.replace(/_/g, ' ')}</p>
         <p className="text-gray-500 text-xs mt-1 truncate">
           {track.uploader_email.split('@')[0]}
         </p>
