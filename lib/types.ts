@@ -17,3 +17,12 @@ export interface Folder {
   name: string
   created_at: string
 }
+
+export interface TrackVersion {
+  id: string
+  track_id: string
+  version_number: number
+  file_path: string
+  created_at: string
+  is_active: boolean
+}

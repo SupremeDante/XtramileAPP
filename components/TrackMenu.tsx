@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom'
 import Meyda from 'meyda'
 import { supabase } from '../lib/supabase'
 import { Track } from '../lib/types'
+import VersionHistoryModal from './VersionHistoryModal'
 
 interface Props {
   track: Track
@@ -129,6 +130,7 @@ export default function TrackMenu({ track, onDeleted, onTrackUpdated, onAddToQue
   const [isOffline, setIsOffline] = useState(false)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   const [showMove, setShowMove] = useState(false)
+  const [showVersionHistory, setShowVersionHistory] = useState(false)
   const [moveFolders, setMoveFolders] = useState<{ id: string; name: string }[]>([])
   const [loadingMove, setLoadingMove] = useState(false)
   const buttonRef = useRef<HTMLButtonElement>(null)
@@ -172,10 +174,26 @@ export default function TrackMenu({ track, onDeleted, onTrackUpdated, onAddToQue
     if (!file) return
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
     const newPath = `${track.user_id}/${Date.now()}-${safeName}`
-    const { error } = await supabase.storage.from('audio').upload(newPath, file)
-    if (error) return
-    await supabase.storage.from('audio').remove([track.file_path])
+    const { error: uploadError } = await supabase.storage.from('audio').upload(newPath, file)
+    if (uploadError) { setToastMessage('Upload failed'); return }
+
+    const { data: versions } = await supabase
+      .from('track_versions')
+      .select('version_number')
+      .eq('track_id', track.id)
+      .order('version_number', { ascending: false })
+      .limit(1)
+    const nextVersion = (versions?.[0]?.version_number ?? 0) + 1
+
+    await supabase.from('track_versions').update({ is_active: false }).eq('track_id', track.id)
+    await supabase.from('track_versions').insert({
+      track_id: track.id,
+      version_number: nextVersion,
+      file_path: newPath,
+      is_active: true,
+    })
     await supabase.from('tracks').update({ file_path: newPath }).eq('id', track.id)
+
     if (fileInputRef.current) fileInputRef.current.value = ''
     onDeleted('')
   }
@@ -293,6 +311,12 @@ export default function TrackMenu({ track, onDeleted, onTrackUpdated, onAddToQue
     setToastMessage(`Added to queue: ${track.title}`)
   }
 
+  function handleVersionHistory(e: React.MouseEvent) {
+    e.stopPropagation()
+    closeMenu()
+    setShowVersionHistory(true)
+  }
+
   async function handleMove(e: React.MouseEvent) {
     e.stopPropagation()
     closeMenu()
@@ -367,6 +391,7 @@ export default function TrackMenu({ track, onDeleted, onTrackUpdated, onAddToQue
               <button onClick={handleDownload} className={itemClass}>Download</button>
             )}
             <button onClick={handleMove} className={itemClass}>Move</button>
+            <button onClick={handleVersionHistory} className={itemClass}>Version History</button>
             <div className="border-t border-[var(--color-border)] mt-1 pt-1">
               <button onClick={handleDelete} className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-[var(--color-bg-surface)] transition-colors">Delete</button>
             </div>
@@ -486,6 +511,14 @@ export default function TrackMenu({ track, onDeleted, onTrackUpdated, onAddToQue
           </div>
         </div>,
         document.body
+      )}
+
+      {showVersionHistory && (
+        <VersionHistoryModal
+          track={track}
+          onClose={() => setShowVersionHistory(false)}
+          onVersionActivated={updated => { setShowVersionHistory(false); onTrackUpdated(updated) }}
+        />
       )}
 
       {toastMessage && createPortal(

@@ -32,13 +32,20 @@ export default function UploadModal({ onClose, onUploaded, userEmail }: Props) {
     const { error: uploadError } = await supabase.storage.from('audio').upload(filePath, file)
     if (uploadError) { setError(uploadError.message); setUploading(false); return }
 
-    const { error: insertError } = await supabase.from('tracks').insert({
+    const { data: trackData, error: insertError } = await supabase.from('tracks').insert({
       title: title.trim(),
       file_path: filePath,
       user_id: session.user.id,
       uploader_email: userEmail,
+    }).select('id').single()
+    if (insertError || !trackData) { setError(insertError?.message ?? 'Insert failed'); setUploading(false); return }
+
+    await supabase.from('track_versions').insert({
+      track_id: trackData.id,
+      version_number: 1,
+      file_path: filePath,
+      is_active: true,
     })
-    if (insertError) { setError(insertError.message); setUploading(false); return }
 
     setUploading(false)
     onUploaded()
