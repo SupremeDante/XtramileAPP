@@ -2,17 +2,23 @@
 
 import { useState, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { Folder } from '../lib/types'
+import { useDroppable } from '@dnd-kit/core'
+import { Folder, Track } from '../lib/types'
+import { getGradientStyle } from '../lib/gradient'
 
 interface Props {
   folder: Folder
   trackCount: number
+  folderTracks?: Track[]
   onClick: () => void
   onRename: (folder: Folder, newName: string) => void
   onDelete: (folderId: string) => void
+  isNew?: boolean
+  isDropTarget?: boolean
 }
 
-export default function FolderCard({ folder, trackCount, onClick, onRename, onDelete }: Props) {
+export default function FolderCard({ folder, trackCount, folderTracks = [], onClick, onRename, onDelete, isNew, isDropTarget }: Props) {
+  const { setNodeRef } = useDroppable({ id: folder.id })
   const [menuOpen, setMenuOpen] = useState(false)
   const [menuPos, setMenuPos] = useState({ top: 0, left: 0 })
   const [renaming, setRenaming] = useState(false)
@@ -49,18 +55,50 @@ export default function FolderCard({ folder, trackCount, onClick, onRename, onDe
 
   return (
     <div
+      ref={setNodeRef}
       onClick={onClick}
-      className="relative bg-[var(--color-bg-elevated)] rounded-xl overflow-hidden cursor-pointer hover:ring-2 hover:ring-[var(--color-accent-ring)] transition-all"
+      className={`relative bg-[var(--color-bg-elevated)] rounded-xl overflow-hidden cursor-pointer hover:ring-2 hover:ring-[var(--color-accent-ring)] transition-all ${isNew ? 'folder-morph-in' : ''} ${isDropTarget ? 'folder-drop-target-card' : ''}`}
     >
       <div className="absolute top-2 right-2 z-20">
         <button ref={buttonRef} onClick={handleMenuClick} className="btn-chrome-circle">⋮</button>
       </div>
 
       <div
-        className="w-full aspect-square flex items-center justify-center select-none"
-        style={{ background: 'linear-gradient(135deg, rgba(180,120,40,0.22) 0%, rgba(120,80,20,0.12) 100%)' }}
+        className="w-full aspect-square relative select-none overflow-hidden"
+        style={{ background: '#0d0d0d' }}
       >
-        <span className="text-5xl">📁</span>
+        {isDropTarget ? (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-white/10 backdrop-blur-sm">
+            <span className="text-5xl">📂</span>
+            <span className="text-white text-[10px] font-bold bg-black/60 px-2.5 py-0.5 rounded-full">Add to folder</span>
+          </div>
+        ) : folderTracks.length === 0 ? (
+          <div className="absolute inset-0 flex items-center justify-center" style={{ background: 'linear-gradient(135deg, rgba(80,80,80,0.22) 0%, rgba(40,40,40,0.12) 100%)' }}>
+            <span className="text-5xl">📁</span>
+          </div>
+        ) : (
+          <div className="absolute inset-0 p-2 grid grid-cols-2 gap-1.5">
+            {folderTracks.slice(0, 4).map((track, i) => {
+              const isOverflow = i === 3 && trackCount > 4
+              return (
+                <div
+                  key={track.id}
+                  className="relative rounded-md overflow-hidden"
+                  style={(!isOverflow && !track.cover_url) ? getGradientStyle(track.id) : { background: '#1a1a1a' }}
+                >
+                  {!isOverflow && track.cover_url && (
+                    <img src={track.cover_url} alt="" className="absolute inset-0 w-full h-full object-cover" draggable={false} />
+                  )}
+                  {isOverflow && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/60">
+                      <span className="text-white text-xs font-bold">+{trackCount - 3}</span>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
 
       <div className="p-3">

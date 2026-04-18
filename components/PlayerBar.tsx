@@ -11,6 +11,7 @@ interface Props {
   onPlayPause: () => void
   onPrev: () => void
   onNext: () => void
+  ownerDisplayName?: string
 }
 
 function formatTime(s: number): string {
@@ -19,7 +20,7 @@ function formatTime(s: number): string {
   return `${m}:${sec.toString().padStart(2, '0')}`
 }
 
-export default function PlayerBar({ track, isPlaying, audioRef, onPlayPause, onPrev, onNext }: Props) {
+export default function PlayerBar({ track, isPlaying, audioRef, onPlayPause, onPrev, onNext, ownerDisplayName }: Props) {
   const [progress, setProgress] = useState(0)
   const [currentTime, setCurrentTime] = useState('0:00')
   const [duration, setDuration] = useState('0:00')
@@ -64,7 +65,7 @@ export default function PlayerBar({ track, isPlaying, audioRef, onPlayPause, onP
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-[var(--color-text-primary)] text-sm font-semibold truncate">{track.title}</p>
-        <p className="text-gray-500 text-xs truncate">{track.uploader_email.split('@')[0]}</p>
+        <p className="text-gray-500 text-xs truncate">{ownerDisplayName ?? track.uploader_email.split('@')[0] ?? 'Unknown User'}</p>
       </div>
       <div className="flex items-center gap-4">
         <button onClick={onPrev} aria-label="Previous Track" className="opacity-70 hover:opacity-100 hover:scale-105 transition-all flex items-center justify-center w-7 h-7">

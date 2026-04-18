@@ -17,9 +17,12 @@ interface Props {
   onAddToQueue?: (track: Track) => void
   onFolderCreated?: () => void
   isFolderTarget?: boolean
+  isMorphing?: boolean
+  ownerDisplayName?: string
+  isDragFrozen?: boolean
 }
 
-export default function TrackCard({ track, isActive, isPlaying: _isPlaying, onClick, onDelete, onTrackUpdated, onAddToQueue, onFolderCreated, isFolderTarget }: Props) {
+export default function TrackCard({ track, isActive, isPlaying: _isPlaying, onClick, onDelete, onTrackUpdated, onAddToQueue, onFolderCreated, isFolderTarget, isMorphing, ownerDisplayName, isDragFrozen }: Props) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: track.id })
   const wasDragging = useRef(false)
 
@@ -32,21 +35,19 @@ export default function TrackCard({ track, isActive, isPlaying: _isPlaying, onCl
     onClick()
   }
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.3 : 1,
-  }
-
   return (
     <div
       ref={setNodeRef}
-      style={style}
       {...attributes}
       onClick={handleClick}
+      style={{
+        transform: (isMorphing || isDragFrozen) ? undefined : CSS.Transform.toString(transform),
+        transition: (isMorphing || isDragFrozen) ? 'none' : transition ?? 'opacity 0.15s ease',
+        opacity: isDragging ? 0 : 1,
+      }}
       className={`relative bg-[var(--color-bg-elevated)] rounded-xl overflow-hidden ${
         isActive ? 'ring-2 ring-[var(--color-accent-ring)]' : ''
-      } ${isFolderTarget ? 'ring-2 ring-amber-400' : ''}`}
+      } ${isFolderTarget ? 'folder-target-card' : ''} ${isMorphing ? 'track-morph-out' : ''}`}
     >
       <div className="absolute top-2 right-2 z-20">
         <TrackMenu track={track} onDeleted={onDelete ?? ((_id: string) => {})} onTrackUpdated={onTrackUpdated ?? (() => {})} onAddToQueue={onAddToQueue} onFolderCreated={onFolderCreated} />
@@ -65,16 +66,16 @@ export default function TrackCard({ track, isActive, isPlaying: _isPlaying, onCl
           />
         )}
         {isFolderTarget && (
-          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-amber-500/40 pointer-events-none">
-            <span className="text-4xl">📁</span>
-            <span className="text-white text-[10px] font-bold mt-1.5 bg-black/55 px-2.5 py-0.5 rounded-full">Drop to create folder</span>
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/10 backdrop-blur-sm pointer-events-none">
+            <span className="text-5xl drop-shadow-lg">📁</span>
+            <span className="text-white text-[10px] font-bold mt-2 bg-black/60 px-2.5 py-0.5 rounded-full">Drop to create folder</span>
           </div>
         )}
       </div>
       <div className="p-3">
         <p className="text-[var(--color-text-primary)] text-sm font-semibold truncate">{track.title.replace(/_/g, ' ')}</p>
         <p className="text-gray-500 text-xs mt-1 truncate">
-          {track.uploader_email.split('@')[0]}
+          {ownerDisplayName ?? track.uploader_email.split('@')[0] ?? 'Unknown User'}
         </p>
       </div>
     </div>
