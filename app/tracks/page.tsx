@@ -98,13 +98,11 @@ export default function TracksPage() {
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
     if (!over || active.id === over.id) return
-    setTracks(prev => {
-      const oldIdx = prev.findIndex(t => t.id === active.id)
-      const newIdx = prev.findIndex(t => t.id === over.id)
-      const reordered = arrayMove(prev, oldIdx, newIdx)
-      saveDisplayOrder(reordered)
-      return reordered
-    })
+    const oldIdx = tracks.findIndex(t => t.id === active.id)
+    const newIdx = tracks.findIndex(t => t.id === over.id)
+    const reordered = arrayMove(tracks, oldIdx, newIdx)
+    setTracks(reordered)
+    saveDisplayOrder(reordered)
   }
 
   function handleTrackClick(track: Track) {
