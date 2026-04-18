@@ -67,11 +67,11 @@ export default function PlayerBar({ track, isPlaying, audioRef, onPlayPause, onP
         <p className="text-gray-500 text-xs truncate">{track.uploader_email.split('@')[0]}</p>
       </div>
       <div className="flex items-center gap-4">
-        <button onClick={onPrev} className="text-gray-400 hover:text-[var(--color-text-primary)] text-lg">⏮</button>
-        <button onClick={onPlayPause} className="text-[var(--color-text-primary)] hover:text-purple-400 text-2xl">
+        <button onClick={onPrev} className="opacity-60 hover:opacity-100 transition-opacity text-xl flex items-center justify-center w-7 h-7">⏮</button>
+        <button onClick={onPlayPause} className="opacity-90 hover:opacity-100 transition-opacity text-xl flex items-center justify-center w-7 h-7">
           {isPlaying ? '⏸' : '▶'}
         </button>
-        <button onClick={onNext} className="text-gray-400 hover:text-[var(--color-text-primary)] text-lg">⏭</button>
+        <button onClick={onNext} className="opacity-60 hover:opacity-100 transition-opacity text-xl flex items-center justify-center w-7 h-7">⏭</button>
       </div>
       <div className="flex flex-1 items-center gap-3 max-w-md">
         <span className="text-gray-500 text-xs w-8 text-right">{currentTime}</span>
