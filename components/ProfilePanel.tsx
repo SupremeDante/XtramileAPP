@@ -44,10 +44,21 @@ export default function ProfilePanel({ userId, email, displayName: initialName, 
     setUploading(true)
     const ext = file.name.split('.').pop() ?? 'jpg'
     const path = `${userId}/${Date.now()}.${ext}`
-    const { error } = await supabase.storage.from('avatars').upload(path, file, { upsert: true })
-    if (error) { setToast('Avatar upload failed'); setUploading(false); return }
+    const { error: uploadError } = await supabase.storage.from('avatars').upload(path, file, { upsert: true })
+    if (uploadError) {
+      console.error('Avatar upload error:', uploadError)
+      setToast(`Upload failed: ${uploadError.message}`)
+      setUploading(false)
+      return
+    }
     const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
-    await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', userId)
+    const { error: profileError } = await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', userId)
+    if (profileError) {
+      console.error('Profile avatar update error:', profileError)
+      setToast(`Profile update failed: ${profileError.message}`)
+      setUploading(false)
+      return
+    }
     setAvatarUrl(publicUrl)
     onUpdated({ avatarUrl: publicUrl })
     setToast('Avatar updated')
@@ -59,7 +70,13 @@ export default function ProfilePanel({ userId, email, displayName: initialName, 
     const trimmed = displayName.trim()
     if (!trimmed) return
     setSaving(true)
-    await supabase.from('profiles').update({ display_name: trimmed }).eq('id', userId)
+    const { error } = await supabase.from('profiles').update({ display_name: trimmed }).eq('id', userId)
+    if (error) {
+      console.error('Display name save error:', error)
+      setToast(`Save failed: ${error.message}`)
+      setSaving(false)
+      return
+    }
     onUpdated({ displayName: trimmed })
     setToast('Profile saved')
     setSaving(false)
