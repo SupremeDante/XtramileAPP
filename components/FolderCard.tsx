@@ -13,12 +13,11 @@ interface Props {
   onClick: () => void
   onRename: (folder: Folder, newName: string) => void
   onDelete: (folderId: string) => void
-  onTrackClick?: (track: Track) => void
   isNew?: boolean
   isDropTarget?: boolean
 }
 
-export default function FolderCard({ folder, trackCount, folderTracks = [], onClick, onRename, onDelete, onTrackClick, isNew, isDropTarget }: Props) {
+export default function FolderCard({ folder, trackCount, folderTracks = [], onClick, onRename, onDelete, isNew, isDropTarget }: Props) {
   const { setNodeRef } = useDroppable({ id: folder.id })
   const [menuOpen, setMenuOpen] = useState(false)
   const [menuPos, setMenuPos] = useState({ top: 0, left: 0 })
@@ -79,9 +78,8 @@ export default function FolderCard({ folder, trackCount, folderTracks = [], onCl
           </div>
         ) : folderTracks.length === 1 ? (
           <div
-            className="absolute inset-0 cursor-pointer hover:brightness-110 transition-all"
+            className="absolute inset-0"
             style={!folderTracks[0].cover_url ? getGradientStyle(folderTracks[0].id) : { background: '#1a1a1a' }}
-            onClick={e => { e.stopPropagation(); onTrackClick?.(folderTracks[0]) }}
           >
             {folderTracks[0].cover_url && (
               <img src={folderTracks[0].cover_url} alt={folderTracks[0].title} className="absolute inset-0 w-full h-full object-cover" draggable={false} />
@@ -92,9 +90,8 @@ export default function FolderCard({ folder, trackCount, folderTracks = [], onCl
             {folderTracks.slice(0, 4).map(track => (
               <div
                 key={track.id}
-                className="relative rounded-md overflow-hidden cursor-pointer hover:brightness-110 transition-all"
+                className="relative rounded-md overflow-hidden"
                 style={!track.cover_url ? getGradientStyle(track.id) : { background: '#1a1a1a' }}
-                onClick={e => { e.stopPropagation(); onTrackClick?.(track) }}
               >
                 {track.cover_url && (
                   <img src={track.cover_url} alt={track.title} className="absolute inset-0 w-full h-full object-cover" draggable={false} />

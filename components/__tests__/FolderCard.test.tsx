@@ -1,5 +1,4 @@
 import { render, screen } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import FolderCard from '../FolderCard'
 import { Folder, Track } from '../../lib/types'
 
@@ -27,12 +26,9 @@ const baseProps = {
   onClick: jest.fn(),
   onRename: jest.fn(),
   onDelete: jest.fn(),
-  onTrackClick: jest.fn(),
 }
 
-beforeEach(() => {
-  jest.clearAllMocks()
-})
+beforeEach(() => jest.clearAllMocks())
 
 it('renders the folder name', () => {
   render(<FolderCard {...baseProps} />)
@@ -50,20 +46,13 @@ it('renders a single cover image when folder has 1 track with cover_url', () => 
   expect(screen.getByRole('img')).toHaveAttribute('src', 'https://example.com/cover1.jpg')
 })
 
-it('calls onTrackClick when a single tile is clicked', async () => {
-  const onTrackClick = jest.fn()
-  const tracks = [makeTrack('t1', 'https://example.com/cover1.jpg')]
-  render(<FolderCard {...baseProps} trackCount={1} folderTracks={tracks} onTrackClick={onTrackClick} />)
-  await userEvent.click(screen.getByRole('img'))
-  expect(onTrackClick).toHaveBeenCalledWith(tracks[0])
-})
-
-it('does not call folder onClick when a tile is clicked', async () => {
-  const onClick = jest.fn()
-  const tracks = [makeTrack('t1', 'https://example.com/cover1.jpg')]
-  render(<FolderCard {...baseProps} trackCount={1} folderTracks={tracks} onClick={onClick} />)
-  await userEvent.click(screen.getByRole('img'))
-  expect(onClick).not.toHaveBeenCalled()
+it('renders 2 tiles when folder has 2 tracks', () => {
+  const tracks = [
+    makeTrack('t1', 'https://example.com/c1.jpg'),
+    makeTrack('t2', 'https://example.com/c2.jpg'),
+  ]
+  render(<FolderCard {...baseProps} trackCount={2} folderTracks={tracks} />)
+  expect(screen.getAllByRole('img')).toHaveLength(2)
 })
 
 it('renders 4 tiles when folder has 4 tracks', () => {
@@ -75,15 +64,6 @@ it('renders 4 tiles when folder has 4 tracks', () => {
   ]
   render(<FolderCard {...baseProps} trackCount={4} folderTracks={tracks} />)
   expect(screen.getAllByRole('img')).toHaveLength(4)
-})
-
-it('renders 2 tiles when folder has 2 tracks', () => {
-  const tracks = [
-    makeTrack('t1', 'https://example.com/c1.jpg'),
-    makeTrack('t2', 'https://example.com/c2.jpg'),
-  ]
-  render(<FolderCard {...baseProps} trackCount={2} folderTracks={tracks} />)
-  expect(screen.getAllByRole('img')).toHaveLength(2)
 })
 
 it('shows full-bleed first track cover with badge when folder has 5+ tracks', () => {
