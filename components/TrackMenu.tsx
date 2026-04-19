@@ -13,6 +13,7 @@ interface Props {
   onDeleted: (trackId: string) => void
   onTrackUpdated: (track: Track) => void
   onAddToQueue?: (track: Track) => void
+  onFolderCreated?: () => void
 }
 
 type TrackWithNotes = Track & { notes?: string }
@@ -113,7 +114,7 @@ async function analyzeAudio(blob: Blob): Promise<{ bpm: number | null; key: stri
   return { bpm, key }
 }
 
-export default function TrackMenu({ track, onDeleted, onTrackUpdated, onAddToQueue }: Props) {
+export default function TrackMenu({ track, onDeleted, onTrackUpdated, onAddToQueue, onFolderCreated }: Props) {
   const t = track as TrackWithNotes
 
   const [open, setOpen] = useState(false)
@@ -136,6 +137,9 @@ export default function TrackMenu({ track, onDeleted, onTrackUpdated, onAddToQue
   const [showVersionHistory, setShowVersionHistory] = useState(false)
   const [moveFolders, setMoveFolders] = useState<{ id: string; name: string }[]>([])
   const [loadingMove, setLoadingMove] = useState(false)
+  const [showCreateFolder, setShowCreateFolder] = useState(false)
+  const [newFolderName, setNewFolderName] = useState('')
+  const [creatingFolder, setCreatingFolder] = useState(false)
   const buttonRef = useRef<HTMLButtonElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const coverInputRef = useRef<HTMLInputElement>(null)
@@ -380,6 +384,42 @@ export default function TrackMenu({ track, onDeleted, onTrackUpdated, onAddToQue
     setShowVersionHistory(true)
   }
 
+  function handleCreateFolderClick(e: React.MouseEvent) {
+    e.stopPropagation()
+    closeMenu()
+    setNewFolderName('')
+    setShowCreateFolder(true)
+  }
+
+  async function handleConfirmCreateFolder() {
+    if (!newFolderName.trim()) return
+    setCreatingFolder(true)
+    const { data: folder, error } = await supabase
+      .from('folders')
+      .insert({ user_id: track.user_id, name: newFolderName.trim() })
+      .select()
+      .single()
+    if (!error && folder) {
+      await supabase.from('tracks').update({ folder_id: folder.id }).eq('id', track.id)
+      onTrackUpdated({ ...track, folder_id: folder.id })
+      onFolderCreated?.()
+      setToastMessage(`Created folder "${newFolderName.trim()}"`)
+    } else {
+      setToastMessage('Failed to create folder')
+    }
+    setCreatingFolder(false)
+    setShowCreateFolder(false)
+  }
+
+  async function handleRemoveFromFolder(e: React.MouseEvent) {
+    e.stopPropagation()
+    closeMenu()
+    const { error } = await supabase.from('tracks').update({ folder_id: null }).eq('id', track.id)
+    if (error) { setToastMessage('Failed to remove from folder'); return }
+    onTrackUpdated({ ...track, folder_id: null })
+    setToastMessage('Track removed from folder')
+  }
+
   async function handleMove(e: React.MouseEvent) {
     e.stopPropagation()
     closeMenu()
@@ -458,7 +498,17 @@ export default function TrackMenu({ track, onDeleted, onTrackUpdated, onAddToQue
             {track.cover_url && (
               <button onClick={handleRemoveCover} className={itemClass}>Remove Cover</button>
             )}
-            <button onClick={handleMove} className={itemClass}>Move</button>
+            {!track.folder_id && (
+              <button onClick={handleCreateFolderClick} className={itemClass}>Create New Folder</button>
+            )}
+            {!track.folder_id ? (
+              <button onClick={handleMove} className={itemClass}>Add to Folder</button>
+            ) : (
+              <>
+                <button onClick={handleMove} className={itemClass}>Move to Folder</button>
+                <button onClick={handleRemoveFromFolder} className="w-full text-left px-4 py-2 text-sm text-amber-400 hover:bg-[var(--color-bg-surface)] transition-colors">Remove from Folder</button>
+              </>
+            )}
             <button onClick={handleVersionHistory} className={itemClass}>Version History</button>
             <div className="border-t border-[var(--color-border)] mt-1 pt-1">
               <button onClick={handleDelete} className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-[var(--color-bg-surface)] transition-colors">Delete</button>
@@ -588,6 +638,30 @@ export default function TrackMenu({ track, onDeleted, onTrackUpdated, onAddToQue
               </button>
             )}
             <button onClick={() => setShowMove(false)} className="w-full bg-[var(--color-bg-cancel)] hover:bg-[var(--color-bg-cancel-hov)] text-[var(--color-text-primary)] py-2 rounded-lg text-sm mt-1">Cancel</button>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {showCreateFolder && createPortal(
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center" onClick={e => { e.stopPropagation(); setShowCreateFolder(false) }}>
+          <div className="bg-[var(--color-bg-elevated)] rounded-2xl p-6 w-full max-w-xs mx-4" onClick={e => e.stopPropagation()}>
+            <h2 className="text-[var(--color-text-primary)] text-base font-semibold mb-3">Create New Folder</h2>
+            <input
+              type="text"
+              value={newFolderName}
+              onChange={e => setNewFolderName(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleConfirmCreateFolder()}
+              placeholder="Folder name"
+              autoFocus
+              className="w-full bg-[var(--color-bg-base)] border border-[var(--color-border-input)] rounded-lg px-3 py-2 text-[var(--color-text-primary)] text-sm focus:outline-none focus:border-purple-500 mb-4"
+            />
+            <div className="flex gap-3">
+              <button onClick={() => setShowCreateFolder(false)} className="flex-1 bg-[var(--color-bg-cancel)] hover:bg-[var(--color-bg-cancel-hov)] text-[var(--color-text-primary)] py-2 rounded-lg text-sm">Cancel</button>
+              <button onClick={handleConfirmCreateFolder} disabled={creatingFolder || !newFolderName.trim()} className="flex-1 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white py-2 rounded-lg text-sm">
+                {creatingFolder ? 'Creating...' : 'Create'}
+              </button>
+            </div>
           </div>
         </div>,
         document.body

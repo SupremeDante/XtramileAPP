@@ -3,14 +3,20 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
-import { Track } from '../../lib/types'
+import { Track, Folder } from '../../lib/types'
+import FolderCard from '../../components/FolderCard'
 import TrackCard from '../../components/TrackCard'
 import UploadModal from '../../components/UploadModal'
 import PlayerBar from '../../components/PlayerBar'
+import FolderView from '../../components/FolderView'
+import ProfilePanel from '../../components/ProfilePanel'
 import { getTheme, saveTheme, applyTheme, ThemePreference } from '../../lib/theme'
 import { getProfile, createProfile, getAvatarColor } from '../../lib/profile'
-import { DndContext, DragEndEvent, DragStartEvent, PointerSensor, KeyboardSensor, useSensor, useSensors, closestCenter } from '@dnd-kit/core'
+import { DndContext, DragEndEvent, DragStartEvent, DragOverEvent, PointerSensor, KeyboardSensor, useSensor, useSensors, closestCenter, DragOverlay } from '@dnd-kit/core'
 import { SortableContext, arrayMove, rectSortingStrategy, sortableKeyboardCoordinates } from '@dnd-kit/sortable'
+import { getGradientStyle } from '../../lib/gradient'
+
+const FOLDER_ZONE_RADIUS = 80
 
 export default function TracksPage() {
   const router = useRouter()
@@ -22,14 +28,30 @@ export default function TracksPage() {
   const [userId, setUserId] = useState<string | null>(null)
   const [displayName, setDisplayName] = useState('')
   const [avatarColor, setAvatarColor] = useState('')
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+  const [joinedAt, setJoinedAt] = useState<string | null>(null)
+  const [showProfile, setShowProfile] = useState(false)
   const [theme, setTheme] = useState<ThemePreference>('system')
   const [searchQuery, setSearchQuery] = useState('')
   const [queue, setQueue] = useState<Track[]>([])
+  const [folders, setFolders] = useState<Folder[]>([])
+  const [activeId, setActiveId] = useState<string | null>(null)
+  const [morphingTrackIds, setMorphingTrackIds] = useState<string[]>([])
+  const [newFolderId, setNewFolderId] = useState<string | null>(null)
+  const [folderDropTargetId, setFolderDropTargetId] = useState<string | null>(null)
+  const [folderView, setFolderView] = useState<Folder | null>(null)
+  const [folderTarget, setFolderTarget] = useState<string | null>(null)
+  const [folderZoneActive, setFolderZoneActive] = useState(false)
+  const [searchExpanded, setSearchExpanded] = useState(false)
   const audioRef = useRef<HTMLAudioElement>(null)
   const playLoggedRef = useRef(false)
+  const folderTargetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pendingFolderTargetRef = useRef<string | null>(null)
+  const gridLockedRef = useRef(false)
+  const pendingStateRef = useRef<{ tracks: Track[] | null; folders: Folder[] | null }>({ tracks: null, folders: null })
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 15 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   )
 
@@ -47,10 +69,13 @@ export default function TracksPage() {
       }
       setDisplayName(profile?.display_name ?? '')
       setAvatarColor(getAvatarColor(session.user.id))
+      setAvatarUrl(profile?.avatar_url ?? null)
+      setJoinedAt(session.user.created_at ?? null)
       const savedTheme = await getTheme(session.user.id)
       setTheme(savedTheme)
       applyTheme(savedTheme)
       await fetchTracks(session.user.id)
+      await fetchFolders(session.user.id)
     }
     init()
   }, [])
@@ -62,17 +87,30 @@ export default function TracksPage() {
   }
 
   function handleTrackUpdated(updated: Track) {
-    setTracks(prev => prev.map(t => t.id === updated.id ? updated : t))
+    const prev = tracks.find(t => t.id === updated.id)
+    const oldFolderId = prev?.folder_id ?? null
+    const updatedFolderId = updated.folder_id ?? null
+    setTracks(ts => ts.map(t => t.id === updated.id ? updated : t))
     if (activeTrack?.id === updated.id) setActiveTrack(updated)
+    if (oldFolderId && oldFolderId !== updatedFolderId) {
+      const remaining = tracks.filter(t => t.id !== updated.id && t.folder_id === oldFolderId)
+      if (remaining.length === 0) autoDeleteFolder(oldFolderId)
+    }
   }
 
   function handleTrackDeleted(trackId: string) {
     if (!trackId) { fetchTracks(); return }
-    setTracks(prev => prev.filter(t => t.id !== trackId))
+    const prev = tracks.find(t => t.id === trackId)
+    const folderId = prev?.folder_id ?? null
+    setTracks(ts => ts.filter(t => t.id !== trackId))
     if (activeTrack?.id === trackId) {
       audioRef.current?.pause()
       setActiveTrack(null)
       setIsPlaying(false)
+    }
+    if (folderId) {
+      const remaining = tracks.filter(t => t.id !== trackId && t.folder_id === folderId)
+      if (remaining.length === 0) autoDeleteFolder(folderId)
     }
   }
 
@@ -83,7 +121,28 @@ export default function TracksPage() {
       .eq('user_id', uid ?? userId)
       .order('display_order', { ascending: true, nullsFirst: false })
       .order('created_at', { ascending: false })
-    if (!error && data) setTracks(data as Track[])
+    if (!error && data) {
+      if (gridLockedRef.current) {
+        pendingStateRef.current.tracks = data as Track[]
+      } else {
+        setTracks(data as Track[])
+      }
+    }
+  }
+
+  async function fetchFolders(uid?: string) {
+    const { data } = await supabase
+      .from('folders')
+      .select('*')
+      .eq('user_id', uid ?? userId)
+      .order('created_at', { ascending: true })
+    if (data) {
+      if (gridLockedRef.current) {
+        pendingStateRef.current.folders = data as Folder[]
+      } else {
+        setFolders(data as Folder[])
+      }
+    }
   }
 
   async function saveDisplayOrder(ordered: Track[]) {
@@ -94,13 +153,165 @@ export default function TracksPage() {
     )
   }
 
-  function handleDragStart(_event: DragStartEvent) {}
+  async function handleDeleteFolder(folderId: string) {
+    await supabase.from('tracks').update({ folder_id: null }).eq('folder_id', folderId)
+    await supabase.from('folders').delete().eq('id', folderId)
+    setFolders(prev => prev.filter(f => f.id !== folderId))
+    setTracks(prev => prev.map(t => t.folder_id === folderId ? { ...t, folder_id: null } : t))
+    if (folderView?.id === folderId) setFolderView(null)
+  }
+
+  async function autoDeleteFolder(folderId: string) {
+    await supabase.from('folders').delete().eq('id', folderId)
+    setFolders(prev => prev.filter(f => f.id !== folderId))
+    if (folderView?.id === folderId) setFolderView(null)
+  }
+
+  async function handleRenameFolder(folder: Folder, newName: string) {
+    await supabase.from('folders').update({ name: newName }).eq('id', folder.id)
+    setFolders(prev => prev.map(f => f.id === folder.id ? { ...f, name: newName } : f))
+    if (folderView?.id === folder.id) setFolderView(prev => prev ? { ...prev, name: newName } : null)
+  }
+
+  function handleFolderCreatedFromMenu() {
+    fetchFolders()
+    fetchTracks()
+  }
+
+  async function createFolderFromDrop(trackAId: string, trackBId: string) {
+    gridLockedRef.current = true
+    pendingStateRef.current = { tracks: null, folders: null }
+    setMorphingTrackIds([trackAId, trackBId])
+
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) {
+      gridLockedRef.current = false
+      setMorphingTrackIds([])
+      return
+    }
+
+    const { data: folder, error } = await supabase
+      .from('folders')
+      .insert({ user_id: session.user.id, name: 'Untitled Folder' })
+      .select()
+      .single()
+
+    if (!error && folder) {
+      await Promise.all([
+        Promise.all([
+          supabase.from('tracks').update({ folder_id: folder.id }).eq('id', trackAId),
+          supabase.from('tracks').update({ folder_id: folder.id }).eq('id', trackBId),
+        ]),
+        new Promise(r => setTimeout(r, 320)),
+      ])
+
+      await Promise.all([fetchFolders(), fetchTracks()])
+
+      gridLockedRef.current = false
+      const { tracks: pendingTracks, folders: pendingFolders } = pendingStateRef.current
+      pendingStateRef.current = { tracks: null, folders: null }
+
+      setNewFolderId(folder.id)
+      if (pendingTracks) setTracks(pendingTracks)
+      if (pendingFolders) setFolders(pendingFolders)
+      setMorphingTrackIds([])
+
+      setTimeout(() => setNewFolderId(null), 500)
+    } else {
+      gridLockedRef.current = false
+      setMorphingTrackIds([])
+    }
+  }
+
+  function handleDragStart(event: DragStartEvent) {
+    setActiveId(event.active.id as string)
+    setFolderZoneActive(false)
+  }
+
+  function handleDragOver(event: DragOverEvent) {
+    const { over, active } = event
+    if (!over || (over.id as string) === (active.id as string)) {
+      if (folderTargetTimerRef.current) clearTimeout(folderTargetTimerRef.current)
+      pendingFolderTargetRef.current = null
+      setFolderTarget(null)
+      setFolderDropTargetId(null)
+      setFolderZoneActive(false)
+      return
+    }
+    const overId = over.id as string
+
+    const isExistingFolder = folders.some(f => f.id === overId)
+    if (isExistingFolder) {
+      if (folderTargetTimerRef.current) clearTimeout(folderTargetTimerRef.current)
+      pendingFolderTargetRef.current = null
+      setFolderTarget(null)
+      setFolderDropTargetId(overId)
+      setFolderZoneActive(false)
+      return
+    }
+    setFolderDropTargetId(null)
+
+    const isUnfolderedTrack = tracks.some(t => t.id === overId && !t.folder_id)
+    if (isUnfolderedTrack) {
+      const activeRect = active.rect.current.translated
+      const overRect = over.rect
+      const inFolderZone = activeRect
+        ? Math.hypot(
+            (activeRect.left + activeRect.width / 2) - (overRect.left + overRect.width / 2),
+            (activeRect.top + activeRect.height / 2) - (overRect.top + overRect.height / 2)
+          ) < FOLDER_ZONE_RADIUS
+        : false
+      setFolderZoneActive(inFolderZone)
+      if (inFolderZone && pendingFolderTargetRef.current !== overId) {
+        if (folderTargetTimerRef.current) clearTimeout(folderTargetTimerRef.current)
+        pendingFolderTargetRef.current = overId
+        folderTargetTimerRef.current = setTimeout(() => setFolderTarget(overId), 400)
+      } else if (!inFolderZone) {
+        if (folderTargetTimerRef.current) clearTimeout(folderTargetTimerRef.current)
+        pendingFolderTargetRef.current = null
+        setFolderTarget(null)
+      }
+    } else {
+      if (folderTargetTimerRef.current) clearTimeout(folderTargetTimerRef.current)
+      pendingFolderTargetRef.current = null
+      setFolderTarget(null)
+      setFolderZoneActive(false)
+    }
+  }
 
   function handleDragEnd(event: DragEndEvent) {
+    const currentFolderTarget = folderTarget
+    setActiveId(null)
+    setFolderDropTargetId(null)
+    setFolderTarget(null)
+    setFolderZoneActive(false)
     const { active, over } = event
+    if (folderTargetTimerRef.current) clearTimeout(folderTargetTimerRef.current)
+    pendingFolderTargetRef.current = null
+
     if (!over || active.id === over.id) return
-    const oldIdx = tracks.findIndex(t => t.id === active.id)
-    const newIdx = tracks.findIndex(t => t.id === over.id)
+
+    const overId = over.id as string
+
+    // Drop on existing folder → add track to it
+    const targetFolder = folders.find(f => f.id === overId)
+    if (targetFolder) {
+      const trackId = active.id as string
+      setTracks(prev => prev.map(t => t.id === trackId ? { ...t, folder_id: targetFolder.id } : t))
+      supabase.from('tracks').update({ folder_id: targetFolder.id }).eq('id', trackId)
+      return
+    }
+
+    // Hover intent confirmed (400ms) → create folder
+    if (currentFolderTarget === overId) {
+      createFolderFromDrop(active.id as string, overId)
+      return
+    }
+
+    // No folder intent → reorder
+    const oldIdx = tracks.findIndex(t => t.id === (active.id as string))
+    const newIdx = tracks.findIndex(t => t.id === overId)
+    if (oldIdx === -1 || newIdx === -1) return
     const reordered = arrayMove(tracks, oldIdx, newIdx)
     setTracks(reordered)
     saveDisplayOrder(reordered)
@@ -212,80 +423,175 @@ export default function TracksPage() {
     : tracks
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg-base)] pb-24">
-      <nav className="bg-[var(--color-bg-surface)] border-b border-[var(--color-border)] px-6 py-3 flex items-center justify-between">
-        <span className="brand-chrome text-lg">XTRAMILE</span>
-<div className="flex items-center gap-4">
+    <div className="min-h-screen bg-[var(--color-bg-base)] pb-20">
+      {/* Brand */}
+      <span className="brand-chrome text-lg" style={{ position: 'fixed', top: 20, left: 20, zIndex: 40, userSelect: 'none', pointerEvents: 'none' }}>XTRAMILE</span>
+
+      {/* Floating control cluster */}
+      <div style={{ position: 'fixed', top: 16, right: 16, zIndex: 40, display: 'flex', alignItems: 'center', gap: 8 }}>
+        {searchExpanded && (
           <input
             type="search"
             placeholder="Search tracks..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            className="bg-[var(--color-bg-elevated)] border border-[var(--color-border)] text-[var(--color-text-primary)] placeholder-gray-500 text-sm px-3 py-1.5 rounded-lg w-48 focus:outline-none focus:border-purple-500"
+            autoFocus
+            className="float-search-input"
           />
+        )}
+        <div className="float-controls">
           <button
-            onClick={() => setShowUpload(true)}
-            className="btn-chrome text-sm px-4 py-2 rounded-lg font-medium"
+            className="float-btn"
+            aria-label={searchExpanded ? 'Close search' : 'Search'}
+            title={searchExpanded ? 'Close search' : 'Search'}
+            onClick={() => { if (searchExpanded) { setSearchExpanded(false); setSearchQuery('') } else setSearchExpanded(true) }}
           >
-            Upload Track
+            {searchExpanded ? (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            )}
           </button>
-          <select
-            value={theme}
-            onChange={e => handleThemeChange(e.target.value as ThemePreference)}
-            className="bg-[var(--color-bg-elevated)] border border-[var(--color-border)] text-[var(--color-text-primary)] text-sm px-2 py-1 rounded-lg"
-          >
-            <option value="light">Light</option>
-            <option value="dark">Dark</option>
-            <option value="system">System</option>
-          </select>
-          {displayName && (
-            <div
-              className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
-              style={{ backgroundColor: avatarColor }}
-            >
-              {displayName.charAt(0).toUpperCase()}
-            </div>
-          )}
-          <span className="text-gray-400 text-sm hidden sm:block">{userEmail}</span>
           <button
-            onClick={async () => { await supabase.auth.signOut(); router.push('/login') }}
-            className="text-gray-500 hover:text-[var(--color-text-primary)] text-sm transition-colors"
+            className="float-btn"
+            aria-label="Upload track"
+            title="Upload track"
+            onClick={() => setShowUpload(true)}
           >
-            Sign out
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          </button>
+          <button
+            className="float-btn"
+            aria-label={`Theme: ${theme}`}
+            title={`Theme: ${theme}`}
+            onClick={() => { const next: ThemePreference = theme === 'dark' ? 'light' : theme === 'light' ? 'system' : 'dark'; handleThemeChange(next) }}
+          >
+            {theme === 'dark' ? (
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            ) : theme === 'light' ? (
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+            ) : (
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            )}
+          </button>
+          <button
+            className="float-btn float-btn--avatar"
+            aria-label="Profile"
+            title="Profile"
+            onClick={() => setShowProfile(true)}
+            style={avatarUrl ? undefined : { backgroundColor: avatarColor }}
+          >
+            {avatarUrl ? (
+              <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
+            ) : (
+              <span style={{ color: 'white', fontSize: 12, fontWeight: 700 }}>{displayName.charAt(0).toUpperCase()}</span>
+            )}
           </button>
         </div>
-      </nav>
+      </div>
 
-      <main className="p-6">
-        <h2 className="text-[var(--color-text-label)] text-xs uppercase tracking-widest mb-5">All Tracks</h2>
-        {tracks.length === 0 ? (
-          <p className="text-gray-600 text-sm">No tracks yet. Upload the first one!</p>
+      <main className="max-w-[1280px] mx-auto w-full px-4 sm:px-6 lg:px-8 pt-20 pb-6">
+        {folderView ? (
+          <FolderView
+            folder={folderView}
+            folderTracks={tracks.filter(t => t.folder_id === folderView.id)}
+            activeTrack={activeTrack}
+            onTrackClick={handleTrackClick}
+            onBack={() => setFolderView(null)}
+          />
         ) : (
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
             onDragStart={handleDragStart}
+            onDragOver={handleDragOver}
             onDragEnd={handleDragEnd}
           >
-            <SortableContext items={filteredTracks.map(t => t.id)} strategy={rectSortingStrategy}>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                {filteredTracks.map(track => (
-                  <TrackCard
-                    key={track.id}
-                    track={track}
-                    isActive={activeTrack?.id === track.id}
-                    isPlaying={isPlaying && activeTrack?.id === track.id}
-                    onClick={() => handleTrackClick(track)}
-                    onDelete={handleTrackDeleted}
-                    onTrackUpdated={handleTrackUpdated}
-                    onAddToQueue={addToQueue}
-                  />
-                ))}
+            {folders.length > 0 && (
+              <div className="mb-8">
+                <h2 className="text-[var(--color-text-label)] text-xs uppercase tracking-widest mb-3">Folders</h2>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-5 lg:gap-6">
+                  {folders.map(folder => (
+                    <FolderCard
+                      key={folder.id}
+                      folder={folder}
+                      trackCount={tracks.filter(t => t.folder_id === folder.id).length}
+                      folderTracks={tracks.filter(t => t.folder_id === folder.id)}
+                      onClick={() => setFolderView(folder)}
+                      onRename={handleRenameFolder}
+                      onDelete={handleDeleteFolder}
+                      onTrackClick={handleTrackClick}
+                      isNew={newFolderId === folder.id}
+                      isDropTarget={folderDropTargetId === folder.id}
+                    />
+                  ))}
+                </div>
               </div>
-            </SortableContext>
+            )}
+            <h2 className="text-[var(--color-text-label)] text-xs uppercase tracking-widest mb-5">All Tracks</h2>
+            {filteredTracks.filter(t => !t.folder_id).length === 0 && folders.length === 0 ? (
+              <p className="text-gray-600 text-sm">No tracks yet. Upload the first one!</p>
+            ) : filteredTracks.filter(t => !t.folder_id).length === 0 ? (
+              <p className="text-gray-600 text-sm">All tracks are in folders.</p>
+            ) : (
+              <SortableContext items={filteredTracks.filter(t => !t.folder_id).map(t => t.id)} strategy={rectSortingStrategy}>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-5 lg:gap-6">
+                  {filteredTracks.filter(t => !t.folder_id).map(track => (
+                    <TrackCard
+                      key={track.id}
+                      track={track}
+                      isActive={activeTrack?.id === track.id}
+                      isPlaying={isPlaying && activeTrack?.id === track.id}
+                      onClick={() => handleTrackClick(track)}
+                      onDelete={handleTrackDeleted}
+                      onTrackUpdated={handleTrackUpdated}
+                      onAddToQueue={addToQueue}
+                      onFolderCreated={handleFolderCreatedFromMenu}
+                      isFolderTarget={folderTarget === track.id}
+                      isMorphing={morphingTrackIds.includes(track.id)}
+                      isDragFrozen={folderZoneActive}
+                      ownerDisplayName={displayName || undefined}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+            )}
+            <DragOverlay dropAnimation={null}>
+              {activeId ? (() => {
+                const t = tracks.find(tr => tr.id === activeId)
+                if (!t) return null
+                return (
+                  <div className="drag-overlay-card bg-[var(--color-bg-elevated)] rounded-xl overflow-hidden" style={{ width: 180 }}>
+                    <div className="w-full aspect-square relative" style={t.cover_url ? undefined : getGradientStyle(t.id)}>
+                      {t.cover_url && <img src={t.cover_url} alt="" className="absolute inset-0 w-full h-full object-cover" draggable={false} />}
+                    </div>
+                    <div className="p-2.5">
+                      <p className="text-[var(--color-text-primary)] text-xs font-semibold truncate">{t.title.replace(/_/g, ' ')}</p>
+                    </div>
+                  </div>
+                )
+              })() : null}
+            </DragOverlay>
           </DndContext>
         )}
       </main>
+
+      {showProfile && userId && (
+        <ProfilePanel
+          userId={userId}
+          email={userEmail ?? ''}
+          displayName={displayName}
+          avatarUrl={avatarUrl}
+          avatarColor={avatarColor}
+          joinedAt={joinedAt ?? undefined}
+          onClose={() => setShowProfile(false)}
+          onUpdated={({ displayName: name, avatarUrl: url }) => {
+            if (name !== undefined) setDisplayName(name)
+            if (url !== undefined) setAvatarUrl(url)
+          }}
+          onSignOut={async () => { await supabase.auth.signOut(); router.push('/login') }}
+        />
+      )}
 
       <audio ref={audioRef} onEnded={handleNext} onPlay={handleAudioPlay} />
 
@@ -306,6 +612,7 @@ export default function TracksPage() {
           onPlayPause={togglePlayPause}
           onPrev={handlePrev}
           onNext={handleNext}
+          ownerDisplayName={displayName || undefined}
         />
       )}
 

@@ -15,10 +15,14 @@ interface Props {
   onDelete?: (trackId: string) => void
   onTrackUpdated?: (track: Track) => void
   onAddToQueue?: (track: Track) => void
+  onFolderCreated?: () => void
   isFolderTarget?: boolean
+  isMorphing?: boolean
+  ownerDisplayName?: string
+  isDragFrozen?: boolean
 }
 
-export default function TrackCard({ track, isActive, isPlaying, onClick, onDelete, onTrackUpdated, onAddToQueue, isFolderTarget }: Props) {
+export default function TrackCard({ track, isActive, isPlaying: _isPlaying, onClick, onDelete, onTrackUpdated, onAddToQueue, onFolderCreated, isFolderTarget, isMorphing, ownerDisplayName, isDragFrozen }: Props) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: track.id })
   const wasDragging = useRef(false)
 
@@ -31,24 +35,26 @@ export default function TrackCard({ track, isActive, isPlaying, onClick, onDelet
     onClick()
   }
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.3 : 1,
-  }
+  const dndTransform = (isMorphing || isDragFrozen) ? undefined : CSS.Transform.toString(transform)
+  const liftTransform = (isActive && !isDragging) ? 'translateY(-6px) scale(1.02)' : ''
+  const combinedTransform = [dndTransform, liftTransform].filter(Boolean).join(' ') || undefined
 
   return (
     <div
       ref={setNodeRef}
-      style={style}
       {...attributes}
       onClick={handleClick}
-      className={`relative bg-[var(--color-bg-elevated)] rounded-xl overflow-hidden ${
-        isActive ? 'ring-2 ring-[var(--color-accent-ring)]' : ''
-      } ${isFolderTarget ? 'ring-2 ring-amber-400' : ''}`}
+      style={{
+        transform: combinedTransform,
+        transition: (isMorphing || isDragFrozen) ? 'none' : [transition, 'transform 0.25s ease, box-shadow 0.25s ease, filter 0.25s ease'].filter(Boolean).join(', '),
+        opacity: isDragging ? 0 : 1,
+      }}
+      className={`track-card relative bg-[var(--color-bg-elevated)] rounded-xl overflow-hidden ${
+        isActive ? 'active' : ''
+      } ${isFolderTarget ? 'folder-target-card' : ''} ${isMorphing ? 'track-morph-out' : ''}`}
     >
       <div className="absolute top-2 right-2 z-20">
-        <TrackMenu track={track} onDeleted={onDelete ?? ((_id: string) => {})} onTrackUpdated={onTrackUpdated ?? (() => {})} onAddToQueue={onAddToQueue} />
+        <TrackMenu track={track} onDeleted={onDelete ?? ((_id: string) => {})} onTrackUpdated={onTrackUpdated ?? (() => {})} onAddToQueue={onAddToQueue} onFolderCreated={onFolderCreated} />
       </div>
       <div
         {...listeners}
@@ -63,12 +69,17 @@ export default function TrackCard({ track, isActive, isPlaying, onClick, onDelet
             draggable={false}
           />
         )}
-        <span className="relative z-10">{isFolderTarget ? '📁' : isPlaying ? '⏸' : '▶'}</span>
+        {isFolderTarget && (
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/10 backdrop-blur-sm pointer-events-none">
+            <span className="text-5xl drop-shadow-lg">📁</span>
+            <span className="text-white text-[10px] font-bold mt-2 bg-black/60 px-2.5 py-0.5 rounded-full">Drop to create folder</span>
+          </div>
+        )}
       </div>
       <div className="p-3">
         <p className="text-[var(--color-text-primary)] text-sm font-semibold truncate">{track.title.replace(/_/g, ' ')}</p>
         <p className="text-gray-500 text-xs mt-1 truncate">
-          {track.uploader_email.split('@')[0]}
+          {ownerDisplayName ?? track.uploader_email.split('@')[0] ?? 'Unknown User'}
         </p>
       </div>
     </div>
