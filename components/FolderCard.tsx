@@ -13,7 +13,7 @@ interface Props {
   onClick: () => void
   onRename: (folder: Folder, newName: string) => void
   onDelete: (folderId: string) => void
-  onTrackClick: (track: Track) => void
+  onTrackClick?: (track: Track) => void
   isNew?: boolean
   isDropTarget?: boolean
 }
@@ -81,7 +81,7 @@ export default function FolderCard({ folder, trackCount, folderTracks = [], onCl
           <div
             className="absolute inset-0 cursor-pointer hover:brightness-110 transition-all"
             style={!folderTracks[0].cover_url ? getGradientStyle(folderTracks[0].id) : { background: '#1a1a1a' }}
-            onClick={e => { e.stopPropagation(); onTrackClick(folderTracks[0]) }}
+            onClick={e => { e.stopPropagation(); onTrackClick?.(folderTracks[0]) }}
           >
             {folderTracks[0].cover_url && (
               <img src={folderTracks[0].cover_url} alt={folderTracks[0].title} className="absolute inset-0 w-full h-full object-cover" draggable={false} />
@@ -92,9 +92,9 @@ export default function FolderCard({ folder, trackCount, folderTracks = [], onCl
             {folderTracks.slice(0, 4).map(track => (
               <div
                 key={track.id}
-                className="relative overflow-hidden cursor-pointer hover:brightness-110 transition-all"
+                className="relative rounded-md overflow-hidden cursor-pointer hover:brightness-110 transition-all"
                 style={!track.cover_url ? getGradientStyle(track.id) : { background: '#1a1a1a' }}
-                onClick={e => { e.stopPropagation(); onTrackClick(track) }}
+                onClick={e => { e.stopPropagation(); onTrackClick?.(track) }}
               >
                 {track.cover_url && (
                   <img src={track.cover_url} alt={track.title} className="absolute inset-0 w-full h-full object-cover" draggable={false} />
