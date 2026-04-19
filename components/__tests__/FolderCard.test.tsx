@@ -30,6 +30,10 @@ const baseProps = {
   onTrackClick: jest.fn(),
 }
 
+beforeEach(() => {
+  jest.clearAllMocks()
+})
+
 it('renders the folder name', () => {
   render(<FolderCard {...baseProps} />)
   expect(screen.getByText('My Beats')).toBeInTheDocument()
@@ -71,6 +75,15 @@ it('renders 4 tiles when folder has 4 tracks', () => {
   ]
   render(<FolderCard {...baseProps} trackCount={4} folderTracks={tracks} />)
   expect(screen.getAllByRole('img')).toHaveLength(4)
+})
+
+it('renders 2 tiles when folder has 2 tracks', () => {
+  const tracks = [
+    makeTrack('t1', 'https://example.com/c1.jpg'),
+    makeTrack('t2', 'https://example.com/c2.jpg'),
+  ]
+  render(<FolderCard {...baseProps} trackCount={2} folderTracks={tracks} />)
+  expect(screen.getAllByRole('img')).toHaveLength(2)
 })
 
 it('shows full-bleed first track cover with badge when folder has 5+ tracks', () => {
