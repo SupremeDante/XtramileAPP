@@ -263,27 +263,29 @@
 
 /* ── Mini Player ─────────────────────────────────────────── */
 
-.mini-player {
+.mini-player-shell {
   background: rgba(20, 20, 20, 0.85);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), inset 0 0 0 0.5px rgba(255, 255, 255, 0.08);
-  transition: transform 0.15s ease;
+  transform: translateX(-50%) scale(1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 @media (hover: hover) {
-  .mini-player:hover {
-    transform: translateX(-50%) scale(1.02);
+  .mini-player-shell:hover {
+    transform: translateX(-50%) scale(1.03);
+    box-shadow: 0 14px 36px rgba(0, 0, 0, 0.6), inset 0 0 0 0.5px rgba(255, 255, 255, 0.14);
   }
 }
 
-[data-theme="light"] .mini-player {
+[data-theme="light"] .mini-player-shell {
   background: rgba(245, 245, 245, 0.88);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), inset 0 0 0 0.5px rgba(0, 0, 0, 0.08);
 }
 
 @media (prefers-color-scheme: light) {
-  [data-theme="system"] .mini-player {
+  [data-theme="system"] .mini-player-shell {
     background: rgba(245, 245, 245, 0.88);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), inset 0 0 0 0.5px rgba(0, 0, 0, 0.08);
   }
