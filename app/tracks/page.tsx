@@ -543,6 +543,7 @@ export default function TracksPage() {
                       onClick={() => setFolderView(folder)}
                       onRename={handleRenameFolder}
                       onDelete={handleDeleteFolder}
+                      onTrackClick={handleTrackClick}
                       isNew={newFolderId === folder.id}
                       isDropTarget={folderDropTargetId === folder.id}
                     />
