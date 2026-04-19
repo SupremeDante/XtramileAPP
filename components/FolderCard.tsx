@@ -123,9 +123,7 @@ export default function FolderCard({ folder, trackCount, folderTracks = [], onCl
 
       <div className="p-3">
         <p className="text-[var(--color-text-primary)] text-sm font-semibold truncate">{folder.name}</p>
-        {folderTracks.length < 5 && (
-          <p className="text-gray-500 text-xs mt-1">{trackCount} track{trackCount !== 1 ? 's' : ''}</p>
-        )}
+        <p className="text-gray-500 text-xs mt-1">{trackCount} track{trackCount !== 1 ? 's' : ''}</p>
       </div>
 
       {menuOpen && createPortal(

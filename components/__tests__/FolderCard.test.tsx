@@ -94,7 +94,7 @@ it('shows full-bleed first track cover with badge when folder has 5+ tracks', ()
   const imgs = screen.getAllByRole('img')
   expect(imgs).toHaveLength(1)
   expect(imgs[0]).toHaveAttribute('src', 'https://example.com/c0.jpg')
-  expect(screen.getByText('6 tracks')).toBeInTheDocument()
+  expect(screen.getAllByText('6 tracks')).toHaveLength(2)
 })
 
 it('shows drop target overlay when isDropTarget is true', () => {
