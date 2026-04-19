@@ -1,5 +1,5 @@
 # Current State
-_Last updated: 2026-04-18_
+_Last updated: 2026-04-18 (session 2)_
 
 ## Working Features
 
@@ -13,7 +13,7 @@ _Last updated: 2026-04-18_
 - Responsive 2/3/4-column grid (`sm:grid-cols-3 lg:grid-cols-4`)
 - Sorted by `display_order` ascending (nulls last), fallback `created_at` descending
 - Cards show cover art (image or deterministic gradient), title, uploader handle
-- Active track highlighted with a grey ring (`ring-[var(--color-accent-ring)]`)
+- Active track: lifted (`translateY(-6px) scale(1.02)`), white layered glow (`box-shadow`), `brightness(1.05)`, slow rotating gloss arc (`::before` conic-gradient, 10s `card-orbit`). Ring removed.
 
 ### Search
 - Real-time filter by title, BPM, or key (case-insensitive)
@@ -36,6 +36,7 @@ _Last updated: 2026-04-18_
 - All buttons 28×28px with `hover:scale-105` transition
 - Track thumbnail (gradient or cover art), title, uploader handle displayed left
 - Seek bar with `currentTime / duration` display right
+- Cover art is a **two-face 3D card** (`transformStyle: preserve-3d`, front + back face with `backfaceVisibility: hidden`) inside a `perspective: 1200px` container. Rotates on Y-axis driven by rAF loop synced to `audio.currentTime`, with angle-based speed ramping at 90°/270° to prevent edge-on lingering. Full 1800° over song duration.
 
 ### Queue
 - "Add to Queue" in TrackMenu appends track to queue array
@@ -145,7 +146,14 @@ Two methods:
 
 ## UI / Styling
 
-### XTRAMILE Header
+### Navigation
+- **Full top nav removed.** Replaced with two fixed elements:
+  - **XTRAMILE brand** — `position: fixed` top-left, `z-index: 40`, `.brand-chrome` chrome shimmer, `pointerEvents: none`
+  - **Floating control cluster** — `position: fixed` top-right, glassmorphism pill (`.float-controls`), contains: search toggle (expands inline input), upload, theme cycle, profile avatar
+- Search input expands inline to the left of the pill when active; closing clears query
+- Theme button cycles dark → light → system
+
+### XTRAMILE Brand
 - `.brand-chrome` class: animated metallic shimmer (left→right) using `background-position` animation
 - 3.5s linear infinite, adapts gradient colors for light theme
 
@@ -156,12 +164,33 @@ Two methods:
 ### Button Variants
 - `.btn-chrome` — rectangular metallic button (used for Upload Track)
 - `.btn-chrome-circle` — circular `⋮` menu trigger on TrackCard and FolderCard
+- `.float-btn` — circular icon button in floating cluster; `.float-btn--avatar` variant for profile photo
+
+---
+
+## Audio Analyser (Web Audio API)
+
+- `AudioContext` + `AnalyserNode` initialised lazily on first user gesture (`handleTrackClick` / `togglePlayPause`) in `page.tsx`
+- `createMediaElementSource` called once (guarded by `sourceCreatedRef`); source connected to both analyser AND `ctx.destination` directly (parallel split, not series chain)
+- Bass sampling rAF runs while `isPlaying`; smoothed with `prev * 0.8 + current * 0.2`; result stored in `smoothedBassRef`
+- `smoothedBassRef` passed as `bassRef` prop to TrackCard — **not yet wired in TrackCard** (prop exists in page.tsx call sites but TrackCard interface not updated; bass-reactive glow not active)
+
+---
+
+## Profile
+
+- Avatar upload: Supabase Storage `avatars` bucket (must be **public**); path `{userId}/{timestamp}.{ext}`; `upsert: true`
+- Both `handleAvatarUpload` and `handleSave` in `ProfilePanel.tsx` now check `{ error }` from every Supabase call and surface the real error message in toast + `console.error`
+- Display name and avatar URL persisted to `profiles` table; loaded on startup via `getProfile()`
+- **Requires Supabase `profiles` table RLS policies**: SELECT, UPDATE, INSERT all scoped to `auth.uid() = id`; without these, saves fail silently
 
 ---
 
 ## Partially Implemented / Known Issues
 
+- **Bass-reactive card glow**: AudioContext and analyser are wired in `page.tsx` but `TrackCard` does not yet accept or use `bassRef` — glow is static CSS only
 - **Delete debugging**: console.log statements remain in `handleDelete` for diagnosing RLS/silent errors — root cause not confirmed
 - **DnD inside folder view**: tracks inside a folder cannot be reordered by drag (no DnD context in folder view)
 - **Drag onto existing folder**: dropping a track onto a FolderCard does not move it into that folder — only track-onto-track creates folders
 - **Supabase migration**: `supabase/migrations/002_folders.sql` must be applied manually in the Supabase dashboard — it is not auto-run
+- **Profiles RLS**: `profiles` table requires manual RLS policy setup in Supabase dashboard for persistence to work
