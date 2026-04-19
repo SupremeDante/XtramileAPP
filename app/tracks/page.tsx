@@ -8,6 +8,7 @@ import FolderCard from '../../components/FolderCard'
 import TrackCard from '../../components/TrackCard'
 import UploadModal from '../../components/UploadModal'
 import PlayerBar from '../../components/PlayerBar'
+import FolderView from '../../components/FolderView'
 import ProfilePanel from '../../components/ProfilePanel'
 import { getTheme, saveTheme, applyTheme, ThemePreference } from '../../lib/theme'
 import { getProfile, createProfile, getAvatarColor } from '../../lib/profile'
@@ -491,37 +492,13 @@ export default function TracksPage() {
 
       <main className="max-w-[1280px] mx-auto w-full px-4 sm:px-6 lg:px-8 pt-20 pb-6">
         {folderView ? (
-          <>
-            <div className="flex items-center gap-3 mb-5">
-              <button
-                onClick={() => setFolderView(null)}
-                className="text-gray-500 hover:text-[var(--color-text-primary)] text-sm transition-colors"
-              >
-                ← Back
-              </button>
-              <h2 className="text-[var(--color-text-primary)] text-base font-semibold">{folderView.name}</h2>
-            </div>
-            {tracks.filter(t => t.folder_id === folderView.id).length === 0 ? (
-              <p className="text-gray-600 text-sm">This folder is empty.</p>
-            ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-5 lg:gap-6">
-                {tracks.filter(t => t.folder_id === folderView.id).map(track => (
-                  <TrackCard
-                    key={track.id}
-                    track={track}
-                    isActive={activeTrack?.id === track.id}
-                    isPlaying={isPlaying && activeTrack?.id === track.id}
-                    onClick={() => handleTrackClick(track)}
-                    onDelete={handleTrackDeleted}
-                    onTrackUpdated={handleTrackUpdated}
-                    onAddToQueue={addToQueue}
-                    onFolderCreated={handleFolderCreatedFromMenu}
-                    ownerDisplayName={displayName || undefined}
-                  />
-                ))}
-              </div>
-            )}
-          </>
+          <FolderView
+            folder={folderView}
+            folderTracks={tracks.filter(t => t.folder_id === folderView.id)}
+            activeTrack={activeTrack}
+            onTrackClick={handleTrackClick}
+            onBack={() => setFolderView(null)}
+          />
         ) : (
           <DndContext
             sensors={sensors}
