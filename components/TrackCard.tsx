@@ -35,18 +35,22 @@ export default function TrackCard({ track, isActive, isPlaying: _isPlaying, onCl
     onClick()
   }
 
+  const dndTransform = (isMorphing || isDragFrozen) ? undefined : CSS.Transform.toString(transform)
+  const liftTransform = (isActive && !isDragging) ? 'translateY(-6px) scale(1.02)' : ''
+  const combinedTransform = [dndTransform, liftTransform].filter(Boolean).join(' ') || undefined
+
   return (
     <div
       ref={setNodeRef}
       {...attributes}
       onClick={handleClick}
       style={{
-        transform: (isMorphing || isDragFrozen) ? undefined : CSS.Transform.toString(transform),
-        transition: (isMorphing || isDragFrozen) ? 'none' : transition ?? 'opacity 0.15s ease',
+        transform: combinedTransform,
+        transition: (isMorphing || isDragFrozen) ? 'none' : [transition, 'transform 0.25s ease, box-shadow 0.25s ease, filter 0.25s ease'].filter(Boolean).join(', '),
         opacity: isDragging ? 0 : 1,
       }}
-      className={`relative bg-[var(--color-bg-elevated)] rounded-xl overflow-hidden ${
-        isActive ? 'ring-2 ring-[var(--color-accent-ring)]' : ''
+      className={`track-card relative bg-[var(--color-bg-elevated)] rounded-xl overflow-hidden ${
+        isActive ? 'active' : ''
       } ${isFolderTarget ? 'folder-target-card' : ''} ${isMorphing ? 'track-morph-out' : ''}`}
     >
       <div className="absolute top-2 right-2 z-20">

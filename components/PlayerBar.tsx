@@ -28,6 +28,7 @@ function PlayerBar({ track, isPlaying, audioRef, onPlayPause, onPrev, onNext }: 
   const rafRef = useRef<number>(0)
   const scrubbingRef = useRef(false)
   const scrubTimeRef = useRef<number | null>(null)
+  const coverRef = useRef<HTMLDivElement>(null)
 
   // rAF loop — direct DOM updates, zero re-renders
   useEffect(() => {
@@ -42,6 +43,18 @@ function PlayerBar({ track, isPlaying, audioRef, onPlayPause, onPrev, onNext }: 
         if (sliderRef.current) sliderRef.current.setAttribute('aria-valuenow', String(Math.round(pct)))
         if (timeDisplayRef.current) {
           timeDisplayRef.current.textContent = `${formatTime(displayTime)} / ${formatTime(audio.duration)}`
+        }
+        if (coverRef.current) {
+          const progress = displayTime / audio.duration
+          const baseRotation = progress * 1800
+          const normalizedAngle = baseRotation % 360
+          const distanceToEdge = Math.min(
+            Math.abs(normalizedAngle - 90),
+            Math.abs(normalizedAngle - 270)
+          )
+          const speedBoost = 1 + (1 - Math.min(distanceToEdge, 90) / 90) * 0.8
+          const rotateY = baseRotation * speedBoost
+          coverRef.current.style.transform = `rotateY(${rotateY.toFixed(2)}deg)`
         }
       } else if (timeDisplayRef.current && timeDisplayRef.current.textContent !== '0:00 / 0:00') {
         timeDisplayRef.current.textContent = '0:00 / 0:00'
@@ -105,14 +118,24 @@ function PlayerBar({ track, isPlaying, audioRef, onPlayPause, onPrev, onNext }: 
         gap: 12,
       }}
     >
-      {/* Cover art */}
-      <div
-        className="rounded-lg overflow-hidden flex-shrink-0"
-        style={{ width: 36, height: 36, ...(!track.cover_url ? getGradientStyle(track.id) : {}) }}
-      >
-        {track.cover_url && (
-          <img src={track.cover_url} alt="" className="w-full h-full object-cover" draggable={false} />
-        )}
+      {/* Cover art — perspective container → rotating card → front+back faces */}
+      <div className="flex-shrink-0" style={{ width: 36, height: 36, perspective: '1200px' }}>
+        <div ref={coverRef} style={{ width: 36, height: 36, transformStyle: 'preserve-3d', position: 'relative' }}>
+          {/* Front face */}
+          <div
+            className="rounded-lg overflow-hidden"
+            style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden', ...(!track.cover_url ? getGradientStyle(track.id) : {}) }}
+          >
+            {track.cover_url && <img src={track.cover_url} alt="" className="w-full h-full object-cover" draggable={false} />}
+          </div>
+          {/* Back face — same image, pre-rotated 180° so it shows when front faces away */}
+          <div
+            className="rounded-lg overflow-hidden"
+            style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden', transform: 'rotateY(180deg)', ...(!track.cover_url ? getGradientStyle(track.id) : {}) }}
+          >
+            {track.cover_url && <img src={track.cover_url} alt="" className="w-full h-full object-cover" draggable={false} />}
+          </div>
+        </div>
       </div>
 
       {/* Track info */}

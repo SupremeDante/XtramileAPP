@@ -41,6 +41,7 @@ export default function TracksPage() {
   const [folderView, setFolderView] = useState<Folder | null>(null)
   const [folderTarget, setFolderTarget] = useState<string | null>(null)
   const [folderZoneActive, setFolderZoneActive] = useState(false)
+  const [searchExpanded, setSearchExpanded] = useState(false)
   const audioRef = useRef<HTMLAudioElement>(null)
   const playLoggedRef = useRef(false)
   const folderTargetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -422,46 +423,73 @@ export default function TracksPage() {
 
   return (
     <div className="min-h-screen bg-[var(--color-bg-base)] pb-20">
-      <nav className="bg-[var(--color-bg-surface)] border-b border-[var(--color-border)] px-6 py-3 flex items-center justify-between">
-        <span className="brand-chrome text-lg">XTRAMILE</span>
-<div className="flex items-center gap-4">
+      {/* Brand */}
+      <span className="brand-chrome text-lg" style={{ position: 'fixed', top: 20, left: 20, zIndex: 40, userSelect: 'none', pointerEvents: 'none' }}>XTRAMILE</span>
+
+      {/* Floating control cluster */}
+      <div style={{ position: 'fixed', top: 16, right: 16, zIndex: 40, display: 'flex', alignItems: 'center', gap: 8 }}>
+        {searchExpanded && (
           <input
             type="search"
             placeholder="Search tracks..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            className="bg-[var(--color-bg-elevated)] border border-[var(--color-border)] text-[var(--color-text-primary)] placeholder-gray-500 text-sm px-3 py-1.5 rounded-lg w-48 focus:outline-none focus:border-purple-500"
+            autoFocus
+            className="float-search-input"
           />
+        )}
+        <div className="float-controls">
           <button
-            onClick={() => setShowUpload(true)}
-            className="btn-chrome text-sm px-4 py-2 rounded-lg font-medium"
+            className="float-btn"
+            aria-label={searchExpanded ? 'Close search' : 'Search'}
+            title={searchExpanded ? 'Close search' : 'Search'}
+            onClick={() => { if (searchExpanded) { setSearchExpanded(false); setSearchQuery('') } else setSearchExpanded(true) }}
           >
-            Upload Track
+            {searchExpanded ? (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            )}
           </button>
-          <select
-            value={theme}
-            onChange={e => handleThemeChange(e.target.value as ThemePreference)}
-            className="bg-[var(--color-bg-elevated)] border border-[var(--color-border)] text-[var(--color-text-primary)] text-sm px-2 py-1 rounded-lg"
-          >
-            <option value="light">Light</option>
-            <option value="dark">Dark</option>
-            <option value="system">System</option>
-          </select>
           <button
+            className="float-btn"
+            aria-label="Upload track"
+            title="Upload track"
+            onClick={() => setShowUpload(true)}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          </button>
+          <button
+            className="float-btn"
+            aria-label={`Theme: ${theme}`}
+            title={`Theme: ${theme}`}
+            onClick={() => { const next: ThemePreference = theme === 'dark' ? 'light' : theme === 'light' ? 'system' : 'dark'; handleThemeChange(next) }}
+          >
+            {theme === 'dark' ? (
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            ) : theme === 'light' ? (
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+            ) : (
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            )}
+          </button>
+          <button
+            className="float-btn float-btn--avatar"
+            aria-label="Profile"
+            title="Profile"
             onClick={() => setShowProfile(true)}
-            className="w-8 h-8 rounded-xl overflow-hidden flex items-center justify-center text-white text-sm font-bold flex-shrink-0 hover:ring-2 hover:ring-[var(--color-accent-ring)] transition-all"
             style={avatarUrl ? undefined : { backgroundColor: avatarColor }}
           >
             {avatarUrl ? (
               <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
             ) : (
-              <span>{displayName.charAt(0).toUpperCase()}</span>
+              <span style={{ color: 'white', fontSize: 12, fontWeight: 700 }}>{displayName.charAt(0).toUpperCase()}</span>
             )}
           </button>
         </div>
-      </nav>
+      </div>
 
-      <main className="max-w-[1280px] mx-auto w-full px-4 sm:px-6 lg:px-8 py-6">
+      <main className="max-w-[1280px] mx-auto w-full px-4 sm:px-6 lg:px-8 pt-20 pb-6">
         {folderView ? (
           <>
             <div className="flex items-center gap-3 mb-5">
