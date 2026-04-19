@@ -421,7 +421,7 @@ export default function TracksPage() {
     : tracks
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg-base)] pb-24">
+    <div className="min-h-screen bg-[var(--color-bg-base)] pb-20">
       <nav className="bg-[var(--color-bg-surface)] border-b border-[var(--color-border)] px-6 py-3 flex items-center justify-between">
         <span className="brand-chrome text-lg">XTRAMILE</span>
 <div className="flex items-center gap-4">
@@ -461,7 +461,7 @@ export default function TracksPage() {
         </div>
       </nav>
 
-      <main className="p-6">
+      <main className="max-w-[1280px] mx-auto w-full px-4 sm:px-6 lg:px-8 py-6">
         {folderView ? (
           <>
             <div className="flex items-center gap-3 mb-5">
@@ -476,7 +476,7 @@ export default function TracksPage() {
             {tracks.filter(t => t.folder_id === folderView.id).length === 0 ? (
               <p className="text-gray-600 text-sm">This folder is empty.</p>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-5 lg:gap-6">
                 {tracks.filter(t => t.folder_id === folderView.id).map(track => (
                   <TrackCard
                     key={track.id}
@@ -505,7 +505,7 @@ export default function TracksPage() {
             {folders.length > 0 && (
               <div className="mb-8">
                 <h2 className="text-[var(--color-text-label)] text-xs uppercase tracking-widest mb-3">Folders</h2>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-5 lg:gap-6">
                   {folders.map(folder => (
                     <FolderCard
                       key={folder.id}
@@ -529,7 +529,7 @@ export default function TracksPage() {
               <p className="text-gray-600 text-sm">All tracks are in folders.</p>
             ) : (
               <SortableContext items={filteredTracks.filter(t => !t.folder_id).map(t => t.id)} strategy={rectSortingStrategy}>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-5 lg:gap-6">
                   {filteredTracks.filter(t => !t.folder_id).map(track => (
                     <TrackCard
                       key={track.id}
