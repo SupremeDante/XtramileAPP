@@ -372,10 +372,10 @@
 }
 
 .mini-player-btn {
-  width: 40px;
-  height: 40px;
-  min-width: 40px;
-  min-height: 40px;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -394,6 +394,16 @@
 
 [data-theme="light"] .mini-player-btn:focus-visible {
   outline-color: rgba(0, 0, 0, 0.4);
+}
+
+.mini-player-icon-btn {
+  transition: filter 0.2s ease, transform 0.15s ease, opacity 0.15s ease;
+}
+
+@media (hover: hover) {
+  .mini-player-icon-btn:hover {
+    transform: scale(1.12);
+  }
 }
 
 /* ── Floating Control Cluster ────────────────────────────────────── */
